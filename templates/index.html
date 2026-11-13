@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบ WMS คลังสินค้า - บริษัท ชาช่าไทย เชียงราย</title>
+    <!-- นำเข้าไลบรารีสแกน QR Code -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn-submit:hover { background-color: #276749; }
+        .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
+        .btn-scanner:hover { background-color: #2b6cb0; }
+        .location-box { padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; }
+        .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+        .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
+        .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
+        #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ระบบ WMS คลังสินค้า</h2>
+        <div class="subtitle">บริษัท ชาช่าไทย จำกัด เชียงราย</div>
+
+        <!-- แจ้งเตือนเมื่อบันทึกข้อมูลสำเร็จ -->
+        {% if request.args.get('success') %}
+            <div class="alert-success">
+                ✅ บันทึกข้อมูลเข้าสู่ระบบ Google Sheets เรียบร้อยแล้ว!
+            </div>
+        {% endif %}
+
+        <!-- ช่องบอกตำแหน่งล็อกสินค้า -->
+        <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
+            📍 ตำแหน่งล็อกสินค้า: 
+            <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้า){% endif %}</span>
+        </div>
+
+        <!-- ปุ่มเปิดกล้องสแกน QR Code -->
+        <div class="form-group">
+            <button type="button" class="btn-scanner" onclick="startScanner()">📷 เปิดกล้องสแกน QR Code ล็อกสินค้า</button>
+            <div id="reader"></div>
+        </div>
+
+        <!-- ฟอร์มบันทึกข้อมูล WMS -->
+        <form action="/submit" method="POST">
+            <!-- ส่งค่าพิกัดแฝงไปกับฟอร์ม -->
+            <input type="hidden" name="location" value="{{ location }}">
+
+            <div class="form-group">
+                <label>สถานะการทำรายการ (Status):</label>
+                <select name="status">
+                    <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
+                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Put-away">Put-away (จัดเก็บเข้าชั้นวาง)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
+                <input type="text" name="product_name" placeholder="ระบุชื่อหรือรหัสสินค้า" required>
+            </div>
+
+            <div class="form-group">
+                <label>จำนวน (Qty):</label>
+                <input type="number" name="qty" value="1" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label>บริษัทคู่ค้า / ลูกค้า (Company):</label>
+                <input type="text" name="company" placeholder="ระบุชื่อบริษัทหรือผู้จำหน่าย" required>
+            </div>
+
+            <div class="form-group">
+                <label>เลขที่ใบงาน (Job Order):</label>
+                <input type="text" name="job_order" placeholder="ระบุเลขที่ Job Order" required>
+            </div>
+
+            <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ</button>
+        </form>
+    </div>
+
+    <script>
+        function startScanner() {
+            const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            scanner.render((decodedText, decodedResult) => {
+                // เมื่อสแกนสำเร็จ ให้นำค่ารหัสล็อกที่ได้ไปเปิดหน้าเว็บใหม่พร้อมพิกัด
+                window.location.href = "/?location=" + encodeURIComponent(decodedText);
+                scanner.clear();
+            }, (errorMessage) => {
+                // ปล่อยว่างไว้สำหรับจัดการระหว่างรอสแกน
+            });
+        }
+    </script>
+</body>
+</html>
