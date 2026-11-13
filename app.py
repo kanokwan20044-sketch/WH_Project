@@ -36,7 +36,6 @@ def index():
         try:
             sheet = get_google_sheet()
             all_rows = sheet.get_all_values()
-            # ค้นหาข้อมูลสินค้าจาก Google Sheets
             for row in all_rows[1:]:
                 if len(row) >= 4 and search_query.lower() in row[3].lower():
                     search_results.append({
@@ -63,9 +62,10 @@ def submit():
         company = request.form.get('company', '')
         job_order = request.form.get('job_order', '')
         
-        # กำหนดเวลาปัจจุบันเป็นเขตเวลาประเทศไทย (UTC+7) อย่างถูกต้อง
-        TH_TIMEZONE = datetime.timezone(datetime.timedelta(hours=7))
-        now = datetime.datetime.now(TH_TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
+        # บังคับดึงเวลาปัจจุบันบวกเพิ่ม 7 ชั่วโมงจาก UTC ตรงๆ เพื่อให้เป็นเวลาไทยแน่นอน
+        utc_now = datetime.datetime.utcnow()
+        th_now = utc_now + datetime.timedelta(hours=7)
+        now = th_now.strftime('%Y-%m-%d %H:%M:%S')
         
         sheet = get_google_sheet()
         sheet.append_row([now, location, status, product_name, qty, company, job_order])
@@ -78,3 +78,4 @@ def submit():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
