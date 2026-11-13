@@ -22,7 +22,7 @@
         .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
         .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
-        .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+        .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
     </style>
 </head>
@@ -38,19 +38,19 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนของระบบค้นหาตำแหน่งสินค้า (เพิ่มปุ่มและช่องค้นหาให้ชัดเจน) -->
+        <!-- ส่วนของระบบค้นหารหัสสินค้า เพื่อดูตำแหน่งล็อก -->
         <div class="search-section">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาตำแหน่งล็อกสินค้า (สำหรับเบิกจ่าย)</h3>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหารหัส/ชื่อสินค้า (เพื่อดูตำแหน่งล็อกเบิกจ่าย)</h3>
             <form action="/" method="GET" style="display: flex; gap: 10px;">
-                <input type="text" name="q" placeholder="พิมพ์ชื่อหรือรหัสสินค้าที่ต้องการหา..." value="{{ search_query }}" style="flex: 1;">
+                <input type="text" name="q" placeholder="กรอกรหัสหรือชื่อสินค้า..." value="{{ search_query }}" style="flex: 1;" required>
                 <button type="submit" style="background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">ค้นหา</button>
             </form>
 
             {% if search_query %}
-                <div style="margin-top: 15px;">
+                <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e0;">
                     <strong>ผลการค้นหาสำหรับ "{{ search_query }}":</strong>
                     {% if search_results %}
-                        <ul style="padding-left: 20px; margin-top: 8px;">
+                        <ul style="padding-left: 20px; margin-top: 8px; margin-bottom: 0;">
                             {% for item in search_results %}
                                 <li style="margin-bottom: 8px;">
                                     สินค้า: <b>{{ item.product_name }}</b> | 
@@ -61,7 +61,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px;">❌ ไม่พบข้อมูลสินค้าดังกล่าวในระบบ</p>
+                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลสินค้าดังกล่าวในระบบ</p>
                     {% endif %}
                 </div>
             {% endif %}
@@ -81,13 +81,12 @@
 
         <!-- ฟอร์มบันทึกข้อมูล WMS -->
         <form action="/submit" method="POST">
-            <!-- ส่งค่าพิกัดแฝงไปกับฟอร์ม -->
             <input type="hidden" name="location" value="{{ location }}">
 
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status">
-                    <!-- ลบ Put-away ออก เหลือเฉพาะ Inbound และ Outbound ตามต้องการ -->
+                    <!-- ตัด Put-away ออกเหลือเฉพาะ Inbound และ Outbound -->
                     <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
                     <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                 </select>

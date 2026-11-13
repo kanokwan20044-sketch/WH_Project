@@ -7,7 +7,6 @@ from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
-# กำหนดสิทธิ์การเข้าถึง Google Sheets และ Drive
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 
 def get_google_sheet():
@@ -32,10 +31,12 @@ def index():
     search_query = request.args.get('q', '').strip()
     search_results = []
 
+    # ระบบค้นหาสินค้าเพื่อดูตำแหน่งล็อก
     if search_query:
         try:
             sheet = get_google_sheet()
             all_rows = sheet.get_all_values()
+            # ค้นหาจากชีต (คอลัมน์ [3] คือชื่อ/รหัสสินค้า)
             for row in all_rows[1:]:
                 if len(row) >= 4 and search_query.lower() in row[3].lower():
                     search_results.append({
@@ -62,7 +63,7 @@ def submit():
         company = request.form.get('company', '')
         job_order = request.form.get('job_order', '')
         
-        # บังคับดึงเวลาปัจจุบันบวกเพิ่ม 7 ชั่วโมงจาก UTC ตรงๆ เพื่อให้เป็นเวลาไทยแน่นอน
+        # บังคับเวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
