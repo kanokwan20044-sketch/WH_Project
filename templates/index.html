@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบ WMS คลังสินค้า - บริษัท ชาช่าไทย เชียงราย</title>
-    <!-- นำเข้าไลบรารีสแกน QR Code -->
+    <title>ระบบ WMS คลังสินค้า - บริษัท ชาช่าไทย จำกัด เชียงราย</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .container { max-width: 650px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
         .form-group { margin-bottom: 20px; }
@@ -23,6 +22,8 @@
         .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        #productFields { display: none; background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
     </style>
 </head>
@@ -31,37 +32,50 @@
         <h2>ระบบ WMS คลังสินค้า</h2>
         <div class="subtitle">บริษัท ชาช่าไทย จำกัด เชียงราย</div>
 
-        <!-- แจ้งเตือนเมื่อบันทึกข้อมูลสำเร็จ -->
         {% if request.args.get('success') %}
             <div class="alert-success">
                 ✅ บันทึกข้อมูลเข้าสู่ระบบ Google Sheets เรียบร้อยแล้ว!
             </div>
         {% endif %}
 
-        <!-- ส่วนของระบบค้นหารหัสสินค้า เพื่อดูตำแหน่งล็อก -->
+        <!-- ส่วนค้นหา (Cycle Count & Date Range) -->
         <div class="search-section">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหารหัส/ชื่อสินค้า (เพื่อดูตำแหน่งล็อกเบิกจ่าย)</h3>
-            <form action="/" method="GET" style="display: flex; gap: 10px;">
-                <input type="text" name="q" placeholder="กรอกรหัสหรือชื่อสินค้า..." value="{{ search_query }}" style="flex: 1;" required>
-                <button type="submit" style="background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">ค้นหา</button>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาตามช่วงเวลาและล็อตสินค้า (Cycle Count)</h3>
+            <form action="/" method="GET">
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label style="font-size: 13px;">ชื่อสินค้า / รหัสสินค้า / Lot Number / Location:</label>
+                    <input type="text" name="q" placeholder="เช่น รหัสสินค้า, LOT-001 หรือ A-01" value="{{ search_query }}">
+                </div>
+                <div class="date-row">
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px;">ตั้งแต่วันที่:</label>
+                        <input type="date" name="start_date" value="{{ start_date }}">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px;">ถึงวันที่:</label>
+                        <input type="date" name="end_date" value="{{ end_date }}">
+                    </div>
+                </div>
+                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติการทำงาน</button>
             </form>
 
-            {% if search_query %}
+            {% if search_query or start_date or end_date %}
                 <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e0;">
-                    <strong>ผลการค้นหาสำหรับ "{{ search_query }}":</strong>
+                    <strong>ผลการค้นหา:</strong>
                     {% if search_results %}
-                        <ul style="padding-left: 20px; margin-top: 8px; margin-bottom: 0;">
+                        <ul style="padding-left: 20px; margin-top: 8px; margin-bottom: 0; font-size: 13px;">
                             {% for item in search_results %}
                                 <li style="margin-bottom: 8px;">
-                                    สินค้า: <b>{{ item.product_name }}</b> | 
-                                    ล็อกตำแหน่ง: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> | 
+                                    <b>{{ item.timestamp }}</b> | 
+                                    สินค้า: <b>{{ item.product_name }}</b> (Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_number }}</span>) | 
+                                    Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> | 
                                     จำนวน: {{ item.qty }} | 
-                                    สถานะ: {{ item.status }}
+                                    สถานะ: <b>{{ item.status }}</b>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลสินค้าดังกล่าวในระบบ</p>
+                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
                     {% endif %}
                 </div>
             {% endif %}
@@ -85,34 +99,43 @@
 
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
-                <select name="status">
-                    <!-- ตัด Put-away ออกเหลือเฉพาะ Inbound และ Outbound -->
+                <select name="status" id="statusSelect" onchange="toggleProductFields()" required>
+                    <option value="">-- กรุณาเลือกสถานะการทำรายการ --</option>
                     <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
                     <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
-                <input type="text" name="product_name" placeholder="ระบุชื่อหรือรหัสสินค้า" required>
+            <!-- ส่วนที่จะแสดงเฉพาะเมื่อเลือก Outbound (หรือสถานะที่ต้องการ) -->
+            <div id="productFields">
+                <div class="form-group">
+                    <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
+                    <input type="text" name="product_name" id="product_name" placeholder="ระบุชื่อหรือรหัสสินค้า">
+                </div>
+
+                <div class="form-group">
+                    <label>ล็อตสินค้า (Lot Number):</label>
+                    <input type="text" name="lot_number" id="lot_number" placeholder="ระบุเลขที่ล็อตสินค้า (เช่น LOT-2026-001)">
+                </div>
+
+                <div class="form-group">
+                    <label>จำนวน (Qty):</label>
+                    <input type="number" name="qty" id="qty" value="1" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label>บริษัทคู่ค้า / ลูกค้า (Company):</label>
+                    <input type="text" name="company" id="company" placeholder="ระบุชื่อบริษัทหรือผู้จำหน่าย">
+                </div>
+
+                <div class="form-group">
+                    <label>เลขที่ใบงาน (Job Order):</label>
+                    <input type="text" name="job_order" id="job_order" placeholder="ระบุเลขที่ Job Order">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>จำนวน (Qty):</label>
-                <input type="number" name="qty" value="1" min="1" required>
-            </div>
-
-            <div class="form-group">
-                <label>บริษัทคู่ค้า / ลูกค้า (Company):</label>
-                <input type="text" name="company" placeholder="ระบุชื่อบริษัทหรือผู้จำหน่าย" required>
-            </div>
-
-            <div class="form-group">
-                <label>เลขที่ใบงาน (Job Order):</label>
-                <input type="text" name="job_order" placeholder="ระบุเลขที่ Job Order" required>
-            </div>
-
-            <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ</button>
+            <button type="submit" class="btn-submit" id="submitBtn" style="display: none;">บันทึกข้อมูลเข้าสู่ระบบ</button>
         </form>
     </div>
 
@@ -122,9 +145,53 @@
             scanner.render((decodedText, decodedResult) => {
                 window.location.href = "/?location=" + encodeURIComponent(decodedText);
                 scanner.clear();
-            }, (errorMessage) => {
-                // ปล่อยว่างไว้
-            });
+            }, (errorMessage) => {});
+        }
+
+        // ฟังก์ชันควบคุมการแสดงผลฟอร์มกรอกข้อมูลตามสถานะที่เลือก
+        function toggleProductFields() {
+            const statusSelect = document.getElementById('statusSelect').value;
+            const productFields = document.getElementById('productFields');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // ดึงช่อง input ด้านในมาตั้งค่า required
+            const pName = document.getElementById('product_name');
+            const pLot = document.getElementById('lot_number');
+            const pQty = document.getElementById('qty');
+            const pComp = document.getElementById('company');
+            const pJob = document.getElementById('job_order');
+
+            if (statusSelect === 'Outbound') {
+                // ถ้าเลือกเบิกจ่าย ให้แสดงช่องกรอกข้อมูลและปุ่มบันทึก
+                productFields.style.display = 'block';
+                submitBtn.style.display = 'block';
+                
+                pName.required = true;
+                pLot.required = true;
+                pQty.required = true;
+                pComp.required = true;
+                pJob.required = true;
+            } else if (statusSelect === 'Inbound' || statusSelect === 'Cycle Count') {
+                // หากเลือกสถานะอื่น สามารถปรับให้แสดงหรือซ่อนได้ตามต้องการ (ในที่นี้ตั้งให้แสดงเมื่อเลือกสถานะใดๆ เพื่อกรอกข้อมูลได้ครับ)
+                productFields.style.display = 'block';
+                submitBtn.style.display = 'block';
+
+                pName.required = true;
+                pLot.required = true;
+                pQty.required = true;
+                pComp.required = true;
+                pJob.required = true;
+            } else {
+                // ถ้ายังไม่ได้เลือก ให้ซ่อนไว้ก่อน
+                productFields.style.display = 'none';
+                submitBtn.style.display = 'none';
+
+                pName.required = false;
+                pLot.required = false;
+                pQty.required = false;
+                pComp.required = false;
+                pJob.required = false;
+            }
         }
     </script>
 </body>
