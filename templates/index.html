@@ -7,7 +7,7 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
-        .container { max-width: 650px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .container { max-width: 680px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
         .form-group { margin-bottom: 20px; }
@@ -37,13 +37,13 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติการทำงาน, ตำแหน่งสินค้า และ Cycle Count ตามช่วงเวลา -->
+        <!-- ส่วนค้นหาประวัติและ Cycle Count ตามช่วงเวลา -->
         <div class="search-section">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาผลตรวจนับ (Cycle Count) ตามช่วงเวลา</h3>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 13px;">คำค้นหา (เช่น Cycle Count, Location หรือ Lot):</label>
-                    <input type="text" name="q" placeholder="เช่น Cycle Count, A-01 หรือ LOT-2026" value="{{ search_query }}">
+                    <label style="font-size: 13px;">คำค้นหา (Item Code, ชื่อสินค้า, Lot หรือ Location):</label>
+                    <input type="text" name="q" placeholder="เช่น CC-001, LOT-20261117 หรือ A-01" value="{{ search_query }}">
                 </div>
                 <div class="date-row">
                     <div style="flex: 1;">
@@ -55,7 +55,7 @@
                         <input type="date" name="end_date" value="{{ end_date }}">
                     </div>
                 </div>
-                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติการตรวจนับ</button>
+                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติ</button>
             </form>
 
             {% if search_query or start_date or end_date %}
@@ -67,14 +67,15 @@
                                 <li style="margin-bottom: 8px;">
                                     <b>{{ item.timestamp }}</b> | 
                                     สถานะ: <b>{{ item.status }}</b> | 
-                                    สินค้า: <b>{{ item.product_name }}</b> (Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_number }}</span>) | 
+                                    รหัส: <b>{{ item.item_code }}</b> ({{ item.product_name }}) | 
+                                    Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_serial }}</span> | 
                                     Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> | 
-                                    จำนวน: {{ item.qty }}
+                                    จำนวน: {{ item.quantity }} {{ item.unit }}
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลการตรวจนับในช่วงเวลาดังกล่าว</p>
+                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
                     {% endif %}
                 </div>
             {% endif %}
@@ -99,26 +100,36 @@
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status" id="statusSelect" onchange="toggleProductField()">
-                    <option value="Inbound">Inbound (นำเข้าสินค้าจัดเก็บเข้าล็อก)</option>
-                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้าออกจากคลัง)</option>
+                    <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
+                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- ช่องกรอกชื่อ/รหัสสินค้า แสดงเฉพาะตอนเลือก Outbound -->
+            <!-- ช่องกรอกรหัสสินค้า พร้อมระบบดึงข้อมูลออโต้จาก Master_code -->
             <div class="form-group" id="productFieldGroup">
-                <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ระบุชื่อหรือรหัสสินค้า" required>
+                <label>รหัสสินค้า (Item Code):</label>
+                <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อดึงข้อมูลออโต้..." onkeyup="fetchProductInfo()" required>
+            </div>
+
+            <div class="form-group" id="nameFieldGroup">
+                <label>ชื่อสินค้า (Product Name):</label>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าแสดงอัตโนมัติ..." readonly>
             </div>
 
             <div class="form-group">
-                <label>ล็อตสินค้า (Lot Number):</label>
-                <input type="text" name="lot_number" placeholder="ระบุเลขที่ล็อตสินค้า (เช่น LOT-2026-001)" required>
+                <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
+                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="ระบุเลขที่ล็อตสินค้า..." required>
             </div>
 
             <div class="form-group">
-                <label>จำนวน (Qty):</label>
-                <input type="number" name="qty" value="1" min="1" required>
+                <label>จำนวน (Quantity):</label>
+                <input type="number" name="quantity" value="1" min="1" required>
+            </div>
+
+            <div class="form-group" id="unitFieldGroup">
+                <label>หน่วย (Unit):</label>
+                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." required>
             </div>
 
             <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ</button>
@@ -137,16 +148,41 @@
         function toggleProductField() {
             const statusSelect = document.getElementById("statusSelect");
             const productFieldGroup = document.getElementById("productFieldGroup");
-            const productNameInput = document.getElementById("productNameInput");
+            const nameFieldGroup = document.getElementById("nameFieldGroup");
+            const unitFieldGroup = document.getElementById("unitFieldGroup");
+            const itemCodeInput = document.getElementById("itemCodeInput");
 
             if (statusSelect.value === "Outbound") {
                 productFieldGroup.style.display = "block";
-                productNameInput.required = true;
+                nameFieldGroup.style.display = "block";
+                unitFieldGroup.style.display = "block";
+                itemCodeInput.required = true;
             } else {
                 productFieldGroup.style.display = "none";
-                productNameInput.required = false;
-                productNameInput.value = "-";
+                nameFieldGroup.style.display = "none";
+                unitFieldGroup.style.display = "none";
+                itemCodeInput.required = false;
+                itemCodeInput.value = "-";
             }
+        }
+
+        // ฟังก์ชันดึงข้อมูลจากชีต Master_code อัตโนมัติเมื่อพิมพ์ Item Code
+        function fetchProductInfo() {
+            const code = document.getElementById("itemCodeInput").value.trim();
+            if (code.length < 2) return;
+
+            fetch(`/get_product_info?code=${encodeURIComponent(code)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("productNameInput").value = data.product_name;
+                        document.getElementById("unitInput").value = data.unit;
+                        if (data.lot_serial) {
+                            document.getElementById("lotSerialInput").value = data.lot_serial;
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching master code:", err));
         }
 
         window.onload = function() {

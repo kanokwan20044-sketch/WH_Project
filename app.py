@@ -1,7 +1,7 @@
 import os
 import json
 import datetime
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
 
-def get_google_sheet():
+def get_google_sheet(sheet_name='DATA_WH'):
     if os.path.exists('credentials.json'):
         creds = Credentials.from_service_account_file('credentials.json', scopes=SCOPES)
     else:
@@ -21,7 +21,7 @@ def get_google_sheet():
             raise Exception("ไม่พบไฟล์หรือข้อมูล Credentials สำหรับเชื่อมต่อ Google Sheets")
     
     client = gspread.authorize(creds)
-    sheet = client.open('Warehouse_Chacha').sheet1
+    sheet = client.open('Warehouse_Chacha').worksheet(sheet_name)
     return sheet
 
 @app.route('/')
@@ -34,24 +34,26 @@ def index():
     search_results = []
 
     try:
-        sheet = get_google_sheet()
+        sheet = get_google_sheet('DATA_WH')
         all_rows = sheet.get_all_values()
         
-        # ค้นหาข้อมูลใน Google Sheets [0:Timestamp, 1:Location, 2:Status, 3:Product Name, 4:Lot Number, 5:Qty]
+        # โครงสร้างคอลัมน์ DATA_WH: [Timestamp, Location, Status, Item Code, Product Name, Lot Serial, Quantity, Unit]
         for row in all_rows[1:]:
-            if len(row) >= 6:
+            if len(row) >= 8:
                 row_time = row[0]
                 row_date = row_time.split(' ')[0]
-                product_name = row[3]
-                lot_number = row[4]
+                item_code = row[3]
+                product_name = row[4]
+                lot_serial = row[5]
                 status = row[2]
                 
                 match_query = True
                 match_date = True
 
                 if search_query:
-                    if (search_query.lower() not in product_name.lower() and 
-                        search_query.lower() not in lot_number.lower() and 
+                    if (search_query.lower() not in item_code.lower() and 
+                        search_query.lower() not in product_name.lower() and 
+                        search_query.lower() not in lot_serial.lower() and 
                         search_query.lower() not in row[1].lower() and
                         search_query.lower() not in status.lower()):
                         match_query = False
@@ -71,35 +73,66 @@ def index():
                         'timestamp': row[0],
                         'location': row[1],
                         'status': row[2],
-                        'product_name': row[3],
-                        'lot_number': row[4],
-                        'qty': row[5]
+                        'item_code': row[3],
+                        'product_name': row[4],
+                        'lot_serial': row[5],
+                        'quantity': row[6],
+                        'unit': row[7]
                     })
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
 
     return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
+# API ดึงข้อมูลสินค้าจาก Master_code อัตโนมัติเมื่อกรอง Item Code
+@app.route('/get_product_info')
+def get_product_info():
+    code = request.args.get('code', '').strip()
+    if not code:
+        return jsonify({'success': False})
+    
+    try:
+        master_sheet = get_google_sheet('Master_code')
+        rows = master_sheet.get_all_values()
+        # โครงสร้าง Master_code: [Item Code, Product Name, Unit, Lot Serial, Pallet No., Description]
+        for row in rows[1:]:
+            if len(row) >= 3 and row[0].strip().lower() == code.lower():
+                return jsonify({
+                    'success': True,
+                    'product_name': row[1],
+                    'unit': row[2],
+                    'lot_serial': row[3] if len(row) > 3 else '',
+                    'description': row[5] if len(row) > 5 else ''
+                })
+    except Exception as e:
+        print(f"Error fetching Master_code: {e}")
+        
+    return jsonify({'success': False})
+
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
         location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
         status = request.form.get('status', '')
+        item_code = request.form.get('item_code', '-')
         product_name = request.form.get('product_name', '-')
-        lot_number = request.form.get('lot_number', '-')
-        qty = request.form.get('qty', '')
+        lot_serial = request.form.get('lot_serial', '-')
+        quantity = request.form.get('quantity', '1')
+        unit = request.form.get('unit', '-')
         
-        # ถ้ารายการไหนไม่ใช่ Outbound ให้บันทึกชื่อสินค้าเป็นขีด (-) เพื่อความเป็นระเบียบ
+        # ถ้าไม่ใช่ Outbound ให้เคลียร์ค่าสินค้าเป็นขีดเพื่อความเป็นระเบียบ
         if status != 'Outbound':
+            item_code = '-'
             product_name = '-'
+            unit = '-'
         
-        # ตั้งค่าเวลาประเทศไทย (UTC+7)
+        # เวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
         
-        sheet = get_google_sheet()
-        sheet.append_row([now, location, status, product_name, lot_number, qty])
+        sheet = get_google_sheet('DATA_WH')
+        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit])
         
         return redirect(url_for('index', success='1'))
         
