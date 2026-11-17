@@ -25,7 +25,7 @@
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
-        #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
+        #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
     </style>
 </head>
 <body>
@@ -39,7 +39,7 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติและ Cycle Count (ซ่อนไว้ จะแสดงเฉพาะตอนเลือกสถานะ Cycle Count) -->
+        <!-- ส่วนค้นหาประวัติและ Cycle Count (จะแสดงเฉพาะเมื่อเลือกสถานะ Cycle Count) -->
         <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
@@ -117,7 +117,7 @@
 
             <div class="form-group">
                 <label>ชื่อสินค้า (Product Name): (เด้งขึ้นมาอัตโนมัติ)</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงอัตโนมัติจาก Master_code..." readonly required>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงอัตโนมัติ..." required>
             </div>
 
             <div class="form-group">
@@ -127,12 +127,12 @@
 
             <div class="form-group">
                 <label>จำนวน (Quantity):</label>
-                <input type="number" name="quantity" value="1" min="1" required>
+                <input type="number" name="quantity" id="quantityInput" value="1" min="1" required>
             </div>
 
             <div class="form-group">
                 <label>หน่วย (Unit):</label>
-                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." readonly required>
+                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." required>
             </div>
 
             <button type="submit" class="btn-submit">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
@@ -144,7 +144,7 @@
         function startLocationScanner() {
             const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
             scanner.render((decodedText) => {
-                window.location.href = "/?location=" + encodeURIComponent(decodedText) + (document.getElementById('statusSelect').value === 'Cycle Count' ? '&q=Cycle_Count' : '');
+                window.location.href = "/?location=" + encodeURIComponent(decodedText);
                 scanner.clear();
             }, (errorMessage) => {});
         }
@@ -163,8 +163,7 @@
                 { facingMode: "environment" },
                 { fps: 10, qrbox: 250 },
                 (decodedText) => {
-                    document.getElementById("itemCodeInput").value = decodedText;
-                    fetchProductInfo(); // ดึงข้อมูลรายละเอียดอัตโนมัติทันที
+                    processScannedData(decodedText);
                     itemScannerInstance.stop().then(() => {
                         readerDiv.style.display = "none";
                     }).catch(err => console.log(err));
@@ -175,7 +174,31 @@
             });
         }
 
-        // ฟังก์ชันดึงข้อมูลจาก Master_code อัตโนมัติ
+        // ฟังก์ชันแกะรหัสและข้อมูลจาก QR Code ที่มีเครื่องหมาย # คั่น (รองรับป้ายสติกเกอร์ของคุณ)
+        function processScannedData(rawText) {
+            if (rawText.includes('#')) {
+                const parts = rawText.split('#');
+                if (parts.length >= 1) document.getElementById("itemCodeInput").value = parts[0].trim();
+                if (parts.length >= 2) document.getElementById("productNameInput").value = parts[1].trim();
+                if (parts.length >= 3) {
+                    let qtyUnit = parts[2].trim().split(' ');
+                    if (qtyUnit.length > 0 && !isNaN(qtyUnit[0])) {
+                        document.getElementById("quantityInput").value = qtyUnit[0];
+                    }
+                    if (qtyUnit.length > 1) {
+                        document.getElementById("unitInput").value = qtyUnit[1];
+                    } else {
+                        document.getElementById("unitInput").value = "Pack";
+                    }
+                }
+                if (parts.length >= 4) document.getElementById("lotSerialInput").value = parts[3].trim();
+            } else {
+                document.getElementById("itemCodeInput").value = rawText;
+                fetchProductInfo();
+            }
+        }
+
+        // ฟังก์ชันดึงข้อมูลจากชีต Master_code (กรณีพิมพ์รหัสเอง)
         function fetchProductInfo() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
@@ -194,22 +217,20 @@
                 .catch(err => console.error("Error fetching master code:", err));
         }
 
-        // ฟังก์ชันจัดการการแสดงผลหน้าต่างค้นหา เมื่อเปลี่ยนสถานะ
+        // ฟังก์ชันซ่อน/แสดงช่องค้นหาประวัติ (Cycle Count)
         function handleStatusChange() {
             const statusSelect = document.getElementById("statusSelect");
             const searchSection = document.getElementById("searchSection");
 
             if (statusSelect.value === "Cycle Count") {
-                searchSection.style.display = "block"; // แสดงหน้าต่างค้นหาเมื่อเลือก Cycle Count
+                searchSection.style.display = "block";
             } else {
-                searchSection.style.display = "none";  // ซ่อนหน้าต่างค้นหาสำหรับ Inbound / Outbound
+                searchSection.style.display = "none";
             }
         }
 
-        // ตรวจสอบสถานะตอนโหลดหน้าเว็บ
         window.onload = function() {
             handleStatusChange();
-            // เปิดหน้าต่างค้นหาค้างไว้หากมีการกดค้นหามาก่อนหน้า
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('q') || urlParams.get('start_date')) {
                 document.getElementById("searchSection").style.display = "block";

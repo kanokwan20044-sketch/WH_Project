@@ -84,7 +84,7 @@ def index():
 
     return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API ดึงข้อมูลจากชีต Master_code อัตโนมัติเมื่อสแกนหรือพิมพ์ Item Code
+# API ดึงข้อมูลสินค้าจาก Master_code อัตโนมัติเมื่อพิมพ์หรือสแกน Item Code
 @app.route('/get_product_info')
 def get_product_info():
     code = request.args.get('code', '').strip()
@@ -112,10 +112,7 @@ def get_product_info():
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
-        location = request.form.get('location', '')
-        if not location:
-            return "กรุณาสแกน QR Code ล็อกสินค้า (Location) ก่อนบันทึกข้อมูล", 400
-            
+        location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
         status = request.form.get('status', '')
         item_code = request.form.get('item_code', '')
         product_name = request.form.get('product_name', '')
