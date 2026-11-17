@@ -80,7 +80,7 @@ def index():
 
     return render_template('index.html', success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API สำหรับค้นหารหัสสินค้า เพื่อดึงชื่อ และเช็คว่าอยู่ Location ไหนจากประวัติ Inbound ล่าสุด
+# API ค้นหาข้อมูลสินค้าและ Location สำหรับ Outbound
 @app.route('/search_outbound')
 def search_outbound():
     code = request.args.get('code', '').strip()
@@ -88,7 +88,7 @@ def search_outbound():
         return jsonify({'success': False})
     
     try:
-        # 1. ดึงข้อมูลจาก Master_code ก่อนเพื่อเอาชื่อสินค้าและหน่วย
+        # 1. ดึงข้อมูลจาก Master_code
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
         prod_name = ""
@@ -102,12 +102,11 @@ def search_outbound():
                 lot_serial = row[3] if len(row) > 3 else ''
                 break
 
-        # 2. ค้นหา Location ล่าสุดจาก DATA_WH ที่มีการ Inbound สินค้านี้
+        # 2. ค้นหา Location จาก DATA_WH ที่มีการเก็บสินค้านี้อยู่ (เช็คประวัติ Inbound ล่าสุด)
         data_sheet = get_google_sheet('DATA_WH')
         data_rows = data_sheet.get_all_values()
-        found_location = "ไม่พบพิกัดจัดเก็บ (ยังไม่มีประวัติ Inbound)"
+        found_location = "ไม่พบพิกัด (ยังไม่มีประวัติ Inbound)"
         
-        # วนลูปจากล่างขึ้นบนเพื่อหาพิกัดล่าสุด
         for row in reversed(data_rows[1:]):
             if len(row) >= 4 and row[3].strip().lower() == code.lower():
                 if row[2].strip() == 'Inbound':
@@ -116,7 +115,7 @@ def search_outbound():
 
         return jsonify({
             'success': True,
-            'product_name': prod_name if prod_name else 'ไม่พบใน Master_code',
+            'product_name': prod_name if prod_name else 'ไม่พบรหัสสินค้าใน Master_code',
             'unit': unit if unit else 'Piece',
             'lot_serial': lot_serial,
             'location': found_location
