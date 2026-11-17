@@ -26,6 +26,7 @@ def get_google_sheet(sheet_name='DATA_WH'):
 
 @app.route('/')
 def index():
+    location = request.args.get('location', '')
     success = request.args.get('success', '')
     search_query = request.args.get('q', '').strip()
     start_date = request.args.get('start_date', '').strip()
@@ -78,9 +79,33 @@ def index():
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
 
-    return render_template('index.html', success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
+    return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API ค้นหาข้อมูลสินค้าและ Location สำหรับ Outbound
+# API ดึงข้อมูลจาก Master_code (สำหรับ Inbound หรือพิมพ์รหัส)
+@app.route('/get_product_info')
+def get_product_info():
+    code = request.args.get('code', '').strip()
+    if not code:
+        return jsonify({'success': False})
+    
+    try:
+        master_sheet = get_google_sheet('Master_code')
+        rows = master_sheet.get_all_values()
+        for row in rows[1:]:
+            if len(row) >= 3 and row[0].strip().lower() == code.lower():
+                return jsonify({
+                    'success': True,
+                    'product_name': row[1],
+                    'unit': row[2],
+                    'lot_serial': row[3] if len(row) > 3 else '',
+                    'description': row[5] if len(row) > 5 else ''
+                })
+    except Exception as e:
+        print(f"Error fetching Master_code: {e}")
+        
+    return jsonify({'success': False})
+
+# API ค้นหา Location ล่าสุดสำหรับ Outbound (พิมพ์รหัสแล้วกดค้นหา)
 @app.route('/search_outbound')
 def search_outbound():
     code = request.args.get('code', '').strip()
@@ -88,7 +113,7 @@ def search_outbound():
         return jsonify({'success': False})
     
     try:
-        # 1. ดึงข้อมูลจาก Master_code
+        # 1. ดึงข้อมูลสินค้าจาก Master_code
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
         prod_name = ""
@@ -102,10 +127,10 @@ def search_outbound():
                 lot_serial = row[3] if len(row) > 3 else ''
                 break
 
-        # 2. ค้นหา Location จาก DATA_WH ที่มีการเก็บสินค้านี้อยู่ (เช็คประวัติ Inbound ล่าสุด)
+        # 2. ค้นหา Location จากประวัติ Inbound ล่าสุดใน DATA_WH
         data_sheet = get_google_sheet('DATA_WH')
         data_rows = data_sheet.get_all_values()
-        found_location = "ไม่พบพิกัด (ยังไม่มีประวัติ Inbound)"
+        found_location = "ไม่พบพิกัดจัดเก็บในระบบ"
         
         for row in reversed(data_rows[1:]):
             if len(row) >= 4 and row[3].strip().lower() == code.lower():
@@ -130,7 +155,7 @@ def search_outbound():
 def submit():
     try:
         location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
-        status = request.form.get('status', 'Outbound')
+        status = request.form.get('status', '')
         item_code = request.form.get('item_code', '')
         product_name = request.form.get('product_name', '')
         lot_serial = request.form.get('lot_serial', '')
