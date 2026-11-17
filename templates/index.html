@@ -37,9 +37,9 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาตามช่วงเวลาและล็อตสินค้า (Cycle Count) -->
+        <!-- ส่วนค้นหาประวัติการทำงานและ Cycle Count -->
         <div class="search-section">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาตามช่วงเวลาและล็อตสินค้า (Cycle Count)</h3>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติการทำรายการ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
                     <label style="font-size: 13px;">ชื่อสินค้า / รหัสสินค้า / Lot Number / Location:</label>
@@ -55,7 +55,7 @@
                         <input type="date" name="end_date" value="{{ end_date }}">
                     </div>
                 </div>
-                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติการทำงาน</button>
+                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติ</button>
             </form>
 
             {% if search_query or start_date or end_date %}
@@ -100,15 +100,15 @@
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status" id="statusSelect" onchange="toggleProductField()">
                     <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
-                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- ช่องกรอกชื่อ/รหัสสินค้า จะแสดงขึ้นมาก็ต่อเมื่อเลือก Outbound -->
+            <!-- ช่องกรอกชื่อ/รหัสสินค้า จะแสดงขึ้นมาเฉพาะตอนเลือก Outbound เท่านั้น -->
             <div class="form-group" id="productFieldGroup">
                 <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ระบุชื่อหรือรหัสสินค้า" required>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ระบุชื่อหรือรหัสสินค้า">
             </div>
 
             <div class="form-group">
@@ -119,16 +119,6 @@
             <div class="form-group">
                 <label>จำนวน (Qty):</label>
                 <input type="number" name="qty" value="1" min="1" required>
-            </div>
-
-            <div class="form-group">
-                <label>บริษัทคู่ค้า / ลูกค้า (Company):</label>
-                <input type="text" name="company" placeholder="ระบุชื่อบริษัทหรือผู้จำหน่าย" required>
-            </div>
-
-            <div class="form-group">
-                <label>เลขที่ใบงาน (Job Order):</label>
-                <input type="text" name="job_order" placeholder="ระบุเลขที่ Job Order" required>
             </div>
 
             <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ</button>
@@ -144,25 +134,22 @@
             }, (errorMessage) => {});
         }
 
-        // ฟังก์ชันสำหรับเปิด/ปิดการแสดงผลช่องกรอกรหัสสินค้าตามสถานะที่เลือก
+        // ฟังก์ชันควบคุมการซ่อน/แสดง ช่องกรอกชื่อสินค้า (แสดงเฉพาะตอน Outbound)
         function toggleProductField() {
             const statusSelect = document.getElementById("statusSelect");
             const productFieldGroup = document.getElementById("productFieldGroup");
             const productNameInput = document.getElementById("productNameInput");
 
-            // หากเลือกเป็น Outbound (เบิกจ่าย) ให้แสดงช่องกรอกสินค้า
             if (statusSelect.value === "Outbound") {
                 productFieldGroup.style.display = "block";
                 productNameInput.required = true;
             } else {
-                // สถานะอื่นอาจซ่อนหรือเปิดตามต้องการ ในที่นี้ตั้งให้ซ่อนเมื่อไม่ได้เลือกเบิกจ่าย
                 productFieldGroup.style.display = "none";
                 productNameInput.required = false;
-                productNameInput.value = "-"; // ใส่ค่าสำรองกรณีไม่ได้กรอก
+                productNameInput.value = "-";
             }
         }
 
-        // เรียกทำงานตอนโหลดหน้าเว็บครั้งแรก
         window.onload = function() {
             toggleProductField();
         };
