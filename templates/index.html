@@ -174,7 +174,7 @@
             });
         }
 
-        // ฟังก์ชันแกะข้อความ QR Code ที่คั่นด้วย # (รองรับ 5 ส่วนตามสูตร Excel)
+        // ฟังก์ชันแกะข้อความ QR Code ที่คั่นด้วย # (รองรับ 5 ส่วนตามสูตร Excel: ItemCode#Name#Qty#Unit#Lot)
         function processScannedData(rawText) {
             if (rawText.includes('#')) {
                 const parts = rawText.split('#');

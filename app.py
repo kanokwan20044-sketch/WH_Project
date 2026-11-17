@@ -37,15 +37,20 @@ def index():
         sheet = get_google_sheet('DATA_WH')
         all_rows = sheet.get_all_values()
         
-        # ค้นหาประวัติ [Timestamp, Location, Status, Item Code, Product Name, Lot Serial, Quantity, Unit]
+        # ตรวจสอบโครงสร้าง: [Timestamp/ColA(ถ้ามี), Location(B), Status(C), Item Code(D), Product Name(E), Lot Serial(F), Qty(G), Unit(H)]
         for row in all_rows[1:]:
             if len(row) >= 8:
-                row_time = row[0]
-                row_date = row_time.split(' ')[0]
+                row_location = row[1]
+                row_status = row[2]
                 item_code = row[3]
                 product_name = row[4]
                 lot_serial = row[5]
-                status = row[2]
+                qty = row[6]
+                unit = row[7]
+                
+                # ใช้คอลัมน์แรกสุด (Col A หรือ Timestamp ถ้ามี) มาเช็ควันที่ หรือเช็คจากข้อมูล
+                row_time = row[0] if row[0] else ''
+                row_date = row_time.split(' ')[0] if ' ' in row_time else ''
                 
                 match_query = True
                 match_date = True
@@ -54,37 +59,31 @@ def index():
                     if (search_query.lower() not in item_code.lower() and 
                         search_query.lower() not in product_name.lower() and 
                         search_query.lower() not in lot_serial.lower() and 
-                        search_query.lower() not in row[1].lower() and
-                        search_query.lower() not in status.lower()):
+                        search_query.lower() not in row_location.lower() and
+                        search_query.lower() not in row_status.lower()):
                         match_query = False
 
-                if start_date and end_date:
+                if start_date and end_date and row_date:
                     if not (start_date <= row_date <= end_date):
-                        match_date = False
-                elif start_date:
-                    if row_date < start_date:
-                        match_date = False
-                elif end_date:
-                    if row_date > end_date:
                         match_date = False
 
                 if (search_query or start_date or end_date) and match_query and match_date:
                     search_results.append({
-                        'timestamp': row[0],
-                        'location': row[1],
-                        'status': row[2],
-                        'item_code': row[3],
-                        'product_name': row[4],
-                        'lot_serial': row[5],
-                        'quantity': row[6],
-                        'unit': row[7]
+                        'timestamp': row_time,
+                        'location': row_location,
+                        'status': row_status,
+                        'item_code': item_code,
+                        'product_name': product_name,
+                        'lot_serial': lot_serial,
+                        'quantity': qty,
+                        'unit': unit
                     })
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
 
     return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API ดึงข้อมูลจากชีต Master_code อัตโนมัติกรณีพิมพ์รหัสเอง
+# API ดึงข้อมูลสินค้าจาก Master_code อัตโนมัติกรณีพิมพ์รหัสเอง
 @app.route('/get_product_info')
 def get_product_info():
     code = request.args.get('code', '').strip()
@@ -125,6 +124,7 @@ def submit():
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
         
         sheet = get_google_sheet('DATA_WH')
+        # บันทึกเรียงตามคอลัมน์ A ถึง H ใน Google Sheets (เว้น A ไว้ หรือใส่เวลา แล้วตามด้วย B=Location ถึง H=Unit)
         sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit])
         
         return redirect(url_for('index', success='1'))
