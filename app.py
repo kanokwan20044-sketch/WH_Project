@@ -29,29 +29,58 @@ def index():
     location = request.args.get('location', '')
     success = request.args.get('success', '')
     search_query = request.args.get('q', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
     search_results = []
 
-    # ระบบค้นหาสินค้าเพื่อดูตำแหน่งล็อก
-    if search_query:
-        try:
-            sheet = get_google_sheet()
-            all_rows = sheet.get_all_values()
-            # ค้นหาจากชีต (คอลัมน์ [3] คือชื่อ/รหัสสินค้า)
-            for row in all_rows[1:]:
-                if len(row) >= 4 and search_query.lower() in row[3].lower():
+    try:
+        sheet = get_google_sheet()
+        all_rows = sheet.get_all_values()
+        
+        # ค้นหาข้อมูลตามคำค้นหาและช่วงเวลา
+        # โครงสร้างคอลัมน์ Google Sheets: [0:Timestamp, 1:Location, 2:Status, 3:Product Name, 4:Lot Number, 5:Qty, 6:Company, 7:Job Order]
+        for row in all_rows[1:]:
+            if len(row) >= 8:
+                row_time = row[0]
+                row_date = row_time.split(' ')[0]
+                product_name = row[3]
+                lot_number = row[4]
+                
+                match_query = True
+                match_date = True
+
+                if search_query:
+                    # ค้นหาได้ทั้งชื่อสินค้า รหัสสินค้า หรือล็อตสินค้า
+                    if (search_query.lower() not in product_name.lower() and 
+                        search_query.lower() not in lot_number.lower() and 
+                        search_query.lower() not in row[1].lower()):
+                        match_query = False
+
+                if start_date and end_date:
+                    if not (start_date <= row_date <= end_date):
+                        match_date = False
+                elif start_date:
+                    if row_date < start_date:
+                        match_date = False
+                elif end_date:
+                    if row_date > end_date:
+                        match_date = False
+
+                if (search_query or start_date or end_date) and match_query and match_date:
                     search_results.append({
                         'timestamp': row[0],
                         'location': row[1],
                         'status': row[2],
                         'product_name': row[3],
-                        'qty': row[4],
-                        'company': row[5] if len(row) > 5 else '',
-                        'job_order': row[6] if len(row) > 6 else ''
+                        'lot_number': row[4],
+                        'qty': row[5],
+                        'company': row[6],
+                        'job_order': row[7]
                     })
-        except Exception as e:
-            print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
+    except Exception as e:
+        print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
 
-    return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query)
+    return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -59,17 +88,19 @@ def submit():
         location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
         status = request.form.get('status', '')
         product_name = request.form.get('product_name', '')
+        lot_number = request.form.get('lot_number', '-')
         qty = request.form.get('qty', '')
         company = request.form.get('company', '')
         job_order = request.form.get('job_order', '')
         
-        # บังคับเวลาประเทศไทย (UTC+7)
+        # เวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
         
         sheet = get_google_sheet()
-        sheet.append_row([now, location, status, product_name, qty, company, job_order])
+        # บันทึกลง Google Sheets เพิ่มช่อง Lot Number ในตำแหน่งที่ 5
+        sheet.append_row([now, location, status, product_name, lot_number, qty, company, job_order])
         
         return redirect(url_for('index', success='1'))
         
