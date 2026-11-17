@@ -37,7 +37,7 @@ def index():
         sheet = get_google_sheet('DATA_WH')
         all_rows = sheet.get_all_values()
         
-        # โครงสร้างคอลัมน์ DATA_WH: [Timestamp, Location, Status, Item Code, Product Name, Lot Serial, Quantity, Unit]
+        # ค้นหาประวัติ [Timestamp, Location, Status, Item Code, Product Name, Lot Serial, Quantity, Unit]
         for row in all_rows[1:]:
             if len(row) >= 8:
                 row_time = row[0]
@@ -84,7 +84,7 @@ def index():
 
     return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API ดึงข้อมูลสินค้าจาก Master_code อัตโนมัติเมื่อกรอง Item Code
+# API ดึงข้อมูลจากชีต Master_code อัตโนมัติเมื่อสแกนหรือพิมพ์ Item Code
 @app.route('/get_product_info')
 def get_product_info():
     code = request.args.get('code', '').strip()
@@ -112,19 +112,16 @@ def get_product_info():
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
-        location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
+        location = request.form.get('location', '')
+        if not location:
+            return "กรุณาสแกน QR Code ล็อกสินค้า (Location) ก่อนบันทึกข้อมูล", 400
+            
         status = request.form.get('status', '')
-        item_code = request.form.get('item_code', '-')
-        product_name = request.form.get('product_name', '-')
-        lot_serial = request.form.get('lot_serial', '-')
+        item_code = request.form.get('item_code', '')
+        product_name = request.form.get('product_name', '')
+        lot_serial = request.form.get('lot_serial', '')
         quantity = request.form.get('quantity', '1')
-        unit = request.form.get('unit', '-')
-        
-        # ถ้าไม่ใช่ Outbound ให้เคลียร์ค่าสินค้าเป็นขีดเพื่อความเป็นระเบียบ
-        if status != 'Outbound':
-            item_code = '-'
-            product_name = '-'
-            unit = '-'
+        unit = request.form.get('unit', '')
         
         # เวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()

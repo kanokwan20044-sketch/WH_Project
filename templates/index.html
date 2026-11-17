@@ -81,45 +81,43 @@
             {% endif %}
         </div>
 
-        <!-- ช่องบอกตำแหน่งล็อกสินค้า -->
+        <!-- [สแกนครั้งที่ 1] ช่องบอกตำแหน่งล็อกสินค้าและปุ่มสแกน Location -->
         <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
-            📍 ตำแหน่งล็อกสินค้า: 
-            <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้า){% endif %}</span>
+            📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1): 
+            <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
         </div>
 
-        <!-- ปุ่มเปิดกล้องสแกน QR Code -->
         <div class="form-group">
-            <button type="button" class="btn-scanner" onclick="startScanner()">📷 เปิดกล้องสแกน QR Code ล็อกสินค้า</button>
+            <button type="button" class="btn-scanner" onclick="startScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
             <div id="reader"></div>
         </div>
 
-        <!-- ฟอร์มบันทึกข้อมูล WMS -->
+        <!-- [สแกนครั้งที่ 2] ฟอร์มบันทึกข้อมูลสินค้า -->
         <form action="/submit" method="POST">
             <input type="hidden" name="location" value="{{ location }}">
 
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
-                <select name="status" id="statusSelect" onchange="toggleProductField()">
+                <select name="status" id="statusSelect">
                     <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
-                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- ช่องกรอกรหัสสินค้า พร้อมระบบดึงข้อมูลออโต้จาก Master_code -->
-            <div class="form-group" id="productFieldGroup">
-                <label>รหัสสินค้า (Item Code):</label>
-                <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อดึงข้อมูลออโต้..." onkeyup="fetchProductInfo()" required>
+            <div class="form-group">
+                <label>สแกนครั้งที่ 2: รหัสสินค้า (Item Code):</label>
+                <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อดึงข้อมูลออโต้..." onkeyup="fetchProductInfo()" required>
             </div>
 
-            <div class="form-group" id="nameFieldGroup">
+            <div class="form-group">
                 <label>ชื่อสินค้า (Product Name):</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าแสดงอัตโนมัติ..." readonly>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าแสดงอัตโนมัติจาก Master_code..." readonly required>
             </div>
 
             <div class="form-group">
                 <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
-                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="ระบุเลขที่ล็อตสินค้า..." required>
+                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้าแสดงอัตโนมัติ..." required>
             </div>
 
             <div class="form-group">
@@ -127,12 +125,12 @@
                 <input type="number" name="quantity" value="1" min="1" required>
             </div>
 
-            <div class="form-group" id="unitFieldGroup">
+            <div class="form-group">
                 <label>หน่วย (Unit):</label>
-                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." required>
+                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." readonly required>
             </div>
 
-            <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ</button>
+            <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
         </form>
     </div>
 
@@ -145,28 +143,7 @@
             }, (errorMessage) => {});
         }
 
-        function toggleProductField() {
-            const statusSelect = document.getElementById("statusSelect");
-            const productFieldGroup = document.getElementById("productFieldGroup");
-            const nameFieldGroup = document.getElementById("nameFieldGroup");
-            const unitFieldGroup = document.getElementById("unitFieldGroup");
-            const itemCodeInput = document.getElementById("itemCodeInput");
-
-            if (statusSelect.value === "Outbound") {
-                productFieldGroup.style.display = "block";
-                nameFieldGroup.style.display = "block";
-                unitFieldGroup.style.display = "block";
-                itemCodeInput.required = true;
-            } else {
-                productFieldGroup.style.display = "none";
-                nameFieldGroup.style.display = "none";
-                unitFieldGroup.style.display = "none";
-                itemCodeInput.required = false;
-                itemCodeInput.value = "-";
-            }
-        }
-
-        // ฟังก์ชันดึงข้อมูลจากชีต Master_code อัตโนมัติเมื่อพิมพ์ Item Code
+        // ฟังก์ชันดึงข้อมูลจากชีต Master_code อัตโนมัติเมื่อยิงบาร์โค้ดหรือพิมพ์รหัส (สแกนครั้งที่ 2)
         function fetchProductInfo() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
@@ -184,10 +161,6 @@
                 })
                 .catch(err => console.error("Error fetching master code:", err));
         }
-
-        window.onload = function() {
-            toggleProductField();
-        };
     </script>
 </body>
 </html>
