@@ -22,7 +22,7 @@
         .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
         .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
-        .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
+        .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
         #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
@@ -39,8 +39,8 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติและ Cycle Count ตามช่วงเวลา -->
-        <div class="search-section">
+        <!-- ส่วนค้นหาประวัติและ Cycle Count (ซ่อนไว้ จะแสดงเฉพาะตอนเลือกสถานะ Cycle Count) -->
+        <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
@@ -94,31 +94,30 @@
             <div id="reader"></div>
         </div>
 
-        <!-- [สแกนครั้งที่ 2] ฟอร์มบันทึกข้อมูลสินค้า -->
+        <!-- ฟอร์มทำรายการ WMS -->
         <form action="/submit" method="POST">
             <input type="hidden" name="location" value="{{ location }}">
 
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
-                <select name="status" id="statusSelect">
+                <select name="status" id="statusSelect" onchange="handleStatusChange()">
                     <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
                     <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
+            <!-- [สแกนครั้งที่ 2] สแกนบาร์โค้ดสินค้า -->
             <div class="form-group">
                 <label>สแกนครั้งที่ 2: รหัสสินค้า (Item Code):</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์หรือสแกนรหัสสินค้า..." onkeyup="fetchProductInfo()" required style="flex: 1;">
-                    <button type="button" onclick="startItemScanner()" style="background: #3182ce; color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-weight: 600;">📷 สแกน</button>
-                </div>
-                <div id="itemReader" style="margin-top: 10px;"></div>
+                <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
+                <div id="itemReader"></div>
+                <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์หรือสแกนรหัสสินค้าเพื่อดึงข้อมูล..." onkeyup="fetchProductInfo()" required>
             </div>
 
             <div class="form-group">
                 <label>ชื่อสินค้า (Product Name): (เด้งขึ้นมาอัตโนมัติ)</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงเมื่อสแกนรหัส..." readonly required>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงอัตโนมัติจาก Master_code..." readonly required>
             </div>
 
             <div class="form-group">
@@ -141,26 +140,33 @@
     </div>
 
     <script>
-        // กล้องตัวที่ 1: สแกน Location
+        // กล้องครั้งที่ 1: สแกน Location
         function startLocationScanner() {
             const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
             scanner.render((decodedText) => {
-                window.location.href = "/?location=" + encodeURIComponent(decodedText);
+                window.location.href = "/?location=" + encodeURIComponent(decodedText) + (document.getElementById('statusSelect').value === 'Cycle Count' ? '&q=Cycle_Count' : '');
                 scanner.clear();
             }, (errorMessage) => {});
         }
 
-        // กล้องตัวที่ 2: สแกนรหัสสินค้า
+        // กล้องครั้งที่ 2: สแกนบาร์โค้ดสินค้า
+        let itemScannerInstance = null;
         function startItemScanner() {
-            const itemScanner = new Html5Qrcode("itemReader");
-            itemScanner.start(
+            const readerDiv = document.getElementById("itemReader");
+            readerDiv.style.display = "block";
+            
+            if (!itemScannerInstance) {
+                itemScannerInstance = new Html5Qrcode("itemReader");
+            }
+
+            itemScannerInstance.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: 250 },
                 (decodedText) => {
                     document.getElementById("itemCodeInput").value = decodedText;
-                    fetchProductInfo(); // ดึงข้อมูลอัตโนมัติทันทีที่สแกนเสร็จ
-                    itemScanner.stop().then(() => {
-                        document.getElementById("itemReader").innerHTML = "";
+                    fetchProductInfo(); // ดึงข้อมูลรายละเอียดอัตโนมัติทันที
+                    itemScannerInstance.stop().then(() => {
+                        readerDiv.style.display = "none";
                     }).catch(err => console.log(err));
                 },
                 (errorMessage) => {}
@@ -169,7 +175,7 @@
             });
         }
 
-        // ฟังก์ชันดึงข้อมูลจากชีต Master_code อัตโนมัติ
+        // ฟังก์ชันดึงข้อมูลจาก Master_code อัตโนมัติ
         function fetchProductInfo() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
@@ -187,6 +193,29 @@
                 })
                 .catch(err => console.error("Error fetching master code:", err));
         }
+
+        // ฟังก์ชันจัดการการแสดงผลหน้าต่างค้นหา เมื่อเปลี่ยนสถานะ
+        function handleStatusChange() {
+            const statusSelect = document.getElementById("statusSelect");
+            const searchSection = document.getElementById("searchSection");
+
+            if (statusSelect.value === "Cycle Count") {
+                searchSection.style.display = "block"; // แสดงหน้าต่างค้นหาเมื่อเลือก Cycle Count
+            } else {
+                searchSection.style.display = "none";  // ซ่อนหน้าต่างค้นหาสำหรับ Inbound / Outbound
+            }
+        }
+
+        // ตรวจสอบสถานะตอนโหลดหน้าเว็บ
+        window.onload = function() {
+            handleStatusChange();
+            // เปิดหน้าต่างค้นหาค้างไว้หากมีการกดค้นหามาก่อนหน้า
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('q') || urlParams.get('start_date')) {
+                document.getElementById("searchSection").style.display = "block";
+                document.getElementById("statusSelect").value = "Cycle Count";
+            }
+        };
     </script>
 </body>
 </html>
