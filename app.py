@@ -37,6 +37,7 @@ def index():
         sheet = get_google_sheet()
         all_rows = sheet.get_all_values()
         
+        # ค้นหาข้อมูลใน Google Sheets [0:Timestamp, 1:Location, 2:Status, 3:Product Name, 4:Lot Number, 5:Qty]
         for row in all_rows[1:]:
             if len(row) >= 6:
                 row_time = row[0]
@@ -88,11 +89,11 @@ def submit():
         lot_number = request.form.get('lot_number', '-')
         qty = request.form.get('qty', '')
         
-        # หากไม่ใช่สถานะ Outbound ให้กำหนดชื่อสินค้าเป็นเครื่องหมายขีด (-) อัตโนมัติ
+        # ถ้ารายการไหนไม่ใช่ Outbound ให้บันทึกชื่อสินค้าเป็นขีด (-) เพื่อความเป็นระเบียบ
         if status != 'Outbound':
             product_name = '-'
         
-        # เวลาประเทศไทย (UTC+7)
+        # ตั้งค่าเวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')

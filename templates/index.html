@@ -37,13 +37,13 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติการทำงานและ Cycle Count ตามช่วงเวลา -->
+        <!-- ส่วนค้นหาประวัติการทำงาน, ตำแหน่งสินค้า และ Cycle Count ตามช่วงเวลา -->
         <div class="search-section">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาผลตรวจนับ (Cycle Count) ตามช่วงเวลา</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 13px;">คำค้นหา (ชื่อสินค้า, Lot, Location หรือ Status):</label>
-                    <input type="text" name="q" placeholder="เช่น Cycle Count, LOT-2026 หรือ A-01" value="{{ search_query }}">
+                    <label style="font-size: 13px;">คำค้นหา (เช่น Cycle Count, Location หรือ Lot):</label>
+                    <input type="text" name="q" placeholder="เช่น Cycle Count, A-01 หรือ LOT-2026" value="{{ search_query }}">
                 </div>
                 <div class="date-row">
                     <div style="flex: 1;">
@@ -55,7 +55,7 @@
                         <input type="date" name="end_date" value="{{ end_date }}">
                     </div>
                 </div>
-                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติ</button>
+                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติการตรวจนับ</button>
             </form>
 
             {% if search_query or start_date or end_date %}
@@ -74,7 +74,7 @@
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
+                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลการตรวจนับในช่วงเวลาดังกล่าว</p>
                     {% endif %}
                 </div>
             {% endif %}
@@ -99,8 +99,8 @@
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status" id="statusSelect" onchange="toggleProductField()">
-                    <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
-                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Inbound">Inbound (นำเข้าสินค้าจัดเก็บเข้าล็อก)</option>
+                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้าออกจากคลัง)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
