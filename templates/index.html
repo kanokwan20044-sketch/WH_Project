@@ -39,7 +39,7 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติและ Cycle Count (จะแสดงเฉพาะเมื่อเลือกสถานะ Cycle Count) -->
+        <!-- ส่วนค้นหาประวัติและ Cycle Count (แสดงเฉพาะเมื่อเลือกสถานะ Cycle Count) -->
         <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
@@ -116,7 +116,7 @@
             </div>
 
             <div class="form-group">
-                <label>ชื่อสินค้า (Product Name): (เด้งขึ้นมาอัตโนมัติ)</label>
+                <label>ชื่อสินค้า (Product Name): (เด้งขึ้นมาตรวจสอบอัตโนมัติ)</label>
                 <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงอัตโนมัติ..." required>
             </div>
 
@@ -174,31 +174,22 @@
             });
         }
 
-        // ฟังก์ชันแกะรหัสและข้อมูลจาก QR Code ที่มีเครื่องหมาย # คั่น (รองรับป้ายสติกเกอร์ของคุณ)
+        // ฟังก์ชันแกะข้อความ QR Code ที่คั่นด้วย # (รองรับ 5 ส่วนตามสูตร Excel)
         function processScannedData(rawText) {
             if (rawText.includes('#')) {
                 const parts = rawText.split('#');
                 if (parts.length >= 1) document.getElementById("itemCodeInput").value = parts[0].trim();
                 if (parts.length >= 2) document.getElementById("productNameInput").value = parts[1].trim();
-                if (parts.length >= 3) {
-                    let qtyUnit = parts[2].trim().split(' ');
-                    if (qtyUnit.length > 0 && !isNaN(qtyUnit[0])) {
-                        document.getElementById("quantityInput").value = qtyUnit[0];
-                    }
-                    if (qtyUnit.length > 1) {
-                        document.getElementById("unitInput").value = qtyUnit[1];
-                    } else {
-                        document.getElementById("unitInput").value = "Pack";
-                    }
-                }
-                if (parts.length >= 4) document.getElementById("lotSerialInput").value = parts[3].trim();
+                if (parts.length >= 3) document.getElementById("quantityInput").value = parts[2].trim();
+                if (parts.length >= 4) document.getElementById("unitInput").value = parts[3].trim();
+                if (parts.length >= 5) document.getElementById("lotSerialInput").value = parts[4].trim();
             } else {
                 document.getElementById("itemCodeInput").value = rawText;
                 fetchProductInfo();
             }
         }
 
-        // ฟังก์ชันดึงข้อมูลจากชีต Master_code (กรณีพิมพ์รหัสเอง)
+        // ฟังก์ชันดึงข้อมูลสำรองจากชีต Master_code (กรณีพิมพ์รหัสเอง)
         function fetchProductInfo() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
@@ -217,11 +208,10 @@
                 .catch(err => console.error("Error fetching master code:", err));
         }
 
-        // ฟังก์ชันซ่อน/แสดงช่องค้นหาประวัติ (Cycle Count)
+        // ฟังก์ชันซ่อน/แสดงช่องค้นหา (Cycle Count)
         function handleStatusChange() {
             const statusSelect = document.getElementById("statusSelect");
             const searchSection = document.getElementById("searchSection");
-
             if (statusSelect.value === "Cycle Count") {
                 searchSection.style.display = "block";
             } else {

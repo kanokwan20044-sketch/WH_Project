@@ -84,7 +84,7 @@ def index():
 
     return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API ดึงข้อมูลสินค้าจาก Master_code อัตโนมัติเมื่อพิมพ์หรือสแกน Item Code
+# API ดึงข้อมูลจากชีต Master_code อัตโนมัติกรณีพิมพ์รหัสเอง
 @app.route('/get_product_info')
 def get_product_info():
     code = request.args.get('code', '').strip()
@@ -94,7 +94,6 @@ def get_product_info():
     try:
         master_sheet = get_google_sheet('Master_code')
         rows = master_sheet.get_all_values()
-        # โครงสร้าง Master_code: [Item Code, Product Name, Unit, Lot Serial, Pallet No., Description]
         for row in rows[1:]:
             if len(row) >= 3 and row[0].strip().lower() == code.lower():
                 return jsonify({
