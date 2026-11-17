@@ -43,6 +43,7 @@ def index():
                 row_date = row_time.split(' ')[0]
                 product_name = row[3]
                 lot_number = row[4]
+                status = row[2]
                 
                 match_query = True
                 match_date = True
@@ -50,7 +51,8 @@ def index():
                 if search_query:
                     if (search_query.lower() not in product_name.lower() and 
                         search_query.lower() not in lot_number.lower() and 
-                        search_query.lower() not in row[1].lower()):
+                        search_query.lower() not in row[1].lower() and
+                        search_query.lower() not in status.lower()):
                         match_query = False
 
                 if start_date and end_date:
@@ -85,6 +87,10 @@ def submit():
         product_name = request.form.get('product_name', '-')
         lot_number = request.form.get('lot_number', '-')
         qty = request.form.get('qty', '')
+        
+        # หากไม่ใช่สถานะ Outbound ให้กำหนดชื่อสินค้าเป็นเครื่องหมายขีด (-) อัตโนมัติ
+        if status != 'Outbound':
+            product_name = '-'
         
         # เวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()

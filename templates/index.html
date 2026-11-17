@@ -37,13 +37,13 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติการทำงานและ Cycle Count -->
+        <!-- ส่วนค้นหาประวัติการทำงานและ Cycle Count ตามช่วงเวลา -->
         <div class="search-section">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติการทำรายการ (Cycle Count)</h3>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 13px;">ชื่อสินค้า / รหัสสินค้า / Lot Number / Location:</label>
-                    <input type="text" name="q" placeholder="เช่น รหัสสินค้า, LOT-2026 หรือ A-01" value="{{ search_query }}">
+                    <label style="font-size: 13px;">คำค้นหา (ชื่อสินค้า, Lot, Location หรือ Status):</label>
+                    <input type="text" name="q" placeholder="เช่น Cycle Count, LOT-2026 หรือ A-01" value="{{ search_query }}">
                 </div>
                 <div class="date-row">
                     <div style="flex: 1;">
@@ -66,10 +66,10 @@
                             {% for item in search_results %}
                                 <li style="margin-bottom: 8px;">
                                     <b>{{ item.timestamp }}</b> | 
+                                    สถานะ: <b>{{ item.status }}</b> | 
                                     สินค้า: <b>{{ item.product_name }}</b> (Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_number }}</span>) | 
                                     Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> | 
-                                    จำนวน: {{ item.qty }} | 
-                                    สถานะ: <b>{{ item.status }}</b>
+                                    จำนวน: {{ item.qty }}
                                 </li>
                             {% endfor %}
                         </ul>
@@ -100,15 +100,15 @@
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status" id="statusSelect" onchange="toggleProductField()">
                     <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
-                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- ช่องกรอกชื่อ/รหัสสินค้า จะแสดงขึ้นมาเฉพาะตอนเลือก Outbound เท่านั้น -->
+            <!-- ช่องกรอกชื่อ/รหัสสินค้า แสดงเฉพาะตอนเลือก Outbound -->
             <div class="form-group" id="productFieldGroup">
                 <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ระบุชื่อหรือรหัสสินค้า">
+                <input type="text" name="product_name" id="productNameInput" placeholder="ระบุชื่อหรือรหัสสินค้า" required>
             </div>
 
             <div class="form-group">
@@ -134,7 +134,6 @@
             }, (errorMessage) => {});
         }
 
-        // ฟังก์ชันควบคุมการซ่อน/แสดง ช่องกรอกชื่อสินค้า (แสดงเฉพาะตอน Outbound)
         function toggleProductField() {
             const statusSelect = document.getElementById("statusSelect");
             const productFieldGroup = document.getElementById("productFieldGroup");
