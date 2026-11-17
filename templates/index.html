@@ -12,7 +12,8 @@
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
-        input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
+        input[readonly] { background-color: #edf2f7; color: #4a5568; }
         .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .btn-submit:hover { background-color: #276749; }
         .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
@@ -24,6 +25,7 @@
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
+        #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
     </style>
 </head>
 <body>
@@ -81,14 +83,14 @@
             {% endif %}
         </div>
 
-        <!-- [สแกนครั้งที่ 1] ช่องบอกตำแหน่งล็อกสินค้าและปุ่มสแกน Location -->
+        <!-- [สแกนครั้งที่ 1] สแกน Location ล็อกสินค้า -->
         <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
             📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1): 
             <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
         </div>
 
         <div class="form-group">
-            <button type="button" class="btn-scanner" onclick="startScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
+            <button type="button" class="btn-scanner" onclick="startLocationScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
             <div id="reader"></div>
         </div>
 
@@ -107,17 +109,21 @@
 
             <div class="form-group">
                 <label>สแกนครั้งที่ 2: รหัสสินค้า (Item Code):</label>
-                <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อดึงข้อมูลออโต้..." onkeyup="fetchProductInfo()" required>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์หรือสแกนรหัสสินค้า..." onkeyup="fetchProductInfo()" required style="flex: 1;">
+                    <button type="button" onclick="startItemScanner()" style="background: #3182ce; color: white; border: none; padding: 0 15px; border-radius: 6px; cursor: pointer; font-weight: 600;">📷 สแกน</button>
+                </div>
+                <div id="itemReader" style="margin-top: 10px;"></div>
             </div>
 
             <div class="form-group">
-                <label>ชื่อสินค้า (Product Name):</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าแสดงอัตโนมัติจาก Master_code..." readonly required>
+                <label>ชื่อสินค้า (Product Name): (เด้งขึ้นมาอัตโนมัติ)</label>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงเมื่อสแกนรหัส..." readonly required>
             </div>
 
             <div class="form-group">
                 <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
-                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้าแสดงอัตโนมัติ..." required>
+                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้า..." required>
             </div>
 
             <div class="form-group">
@@ -130,20 +136,40 @@
                 <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." readonly required>
             </div>
 
-            <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
+            <button type="submit" class="btn-submit">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
         </form>
     </div>
 
     <script>
-        function startScanner() {
+        // กล้องตัวที่ 1: สแกน Location
+        function startLocationScanner() {
             const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            scanner.render((decodedText, decodedResult) => {
+            scanner.render((decodedText) => {
                 window.location.href = "/?location=" + encodeURIComponent(decodedText);
                 scanner.clear();
             }, (errorMessage) => {});
         }
 
-        // ฟังก์ชันดึงข้อมูลจากชีต Master_code อัตโนมัติเมื่อยิงบาร์โค้ดหรือพิมพ์รหัส (สแกนครั้งที่ 2)
+        // กล้องตัวที่ 2: สแกนรหัสสินค้า
+        function startItemScanner() {
+            const itemScanner = new Html5Qrcode("itemReader");
+            itemScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    document.getElementById("itemCodeInput").value = decodedText;
+                    fetchProductInfo(); // ดึงข้อมูลอัตโนมัติทันทีที่สแกนเสร็จ
+                    itemScanner.stop().then(() => {
+                        document.getElementById("itemReader").innerHTML = "";
+                    }).catch(err => console.log(err));
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                alert("ไม่สามารถเปิดกล้องได้: " + err);
+            });
+        }
+
+        // ฟังก์ชันดึงข้อมูลจากชีต Master_code อัตโนมัติ
         function fetchProductInfo() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
