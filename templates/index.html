@@ -23,7 +23,6 @@
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        #productFields { display: none; background: #f7fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
     </style>
 </head>
@@ -38,13 +37,13 @@
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหา (Cycle Count & Date Range) -->
+        <!-- ส่วนค้นหาตามช่วงเวลาและล็อตสินค้า (Cycle Count) -->
         <div class="search-section">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาตามช่วงเวลาและล็อตสินค้า (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
                     <label style="font-size: 13px;">ชื่อสินค้า / รหัสสินค้า / Lot Number / Location:</label>
-                    <input type="text" name="q" placeholder="เช่น รหัสสินค้า, LOT-001 หรือ A-01" value="{{ search_query }}">
+                    <input type="text" name="q" placeholder="เช่น รหัสสินค้า, LOT-2026 หรือ A-01" value="{{ search_query }}">
                 </div>
                 <div class="date-row">
                     <div style="flex: 1;">
@@ -99,43 +98,40 @@
 
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
-                <select name="status" id="statusSelect" onchange="toggleProductFields()" required>
-                    <option value="">-- กรุณาเลือกสถานะการทำรายการ --</option>
+                <select name="status" id="statusSelect" onchange="toggleProductField()">
                     <option value="Inbound">Inbound (นำเข้าสินค้า)</option>
-                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- ส่วนที่จะแสดงเฉพาะเมื่อเลือก Outbound (หรือสถานะที่ต้องการ) -->
-            <div id="productFields">
-                <div class="form-group">
-                    <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
-                    <input type="text" name="product_name" id="product_name" placeholder="ระบุชื่อหรือรหัสสินค้า">
-                </div>
-
-                <div class="form-group">
-                    <label>ล็อตสินค้า (Lot Number):</label>
-                    <input type="text" name="lot_number" id="lot_number" placeholder="ระบุเลขที่ล็อตสินค้า (เช่น LOT-2026-001)">
-                </div>
-
-                <div class="form-group">
-                    <label>จำนวน (Qty):</label>
-                    <input type="number" name="qty" id="qty" value="1" min="1">
-                </div>
-
-                <div class="form-group">
-                    <label>บริษัทคู่ค้า / ลูกค้า (Company):</label>
-                    <input type="text" name="company" id="company" placeholder="ระบุชื่อบริษัทหรือผู้จำหน่าย">
-                </div>
-
-                <div class="form-group">
-                    <label>เลขที่ใบงาน (Job Order):</label>
-                    <input type="text" name="job_order" id="job_order" placeholder="ระบุเลขที่ Job Order">
-                </div>
+            <!-- ช่องกรอกชื่อ/รหัสสินค้า จะแสดงขึ้นมาก็ต่อเมื่อเลือก Outbound -->
+            <div class="form-group" id="productFieldGroup">
+                <label>ชื่อหรือรหัสสินค้า (Product Name):</label>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ระบุชื่อหรือรหัสสินค้า" required>
             </div>
 
-            <button type="submit" class="btn-submit" id="submitBtn" style="display: none;">บันทึกข้อมูลเข้าสู่ระบบ</button>
+            <div class="form-group">
+                <label>ล็อตสินค้า (Lot Number):</label>
+                <input type="text" name="lot_number" placeholder="ระบุเลขที่ล็อตสินค้า (เช่น LOT-2026-001)" required>
+            </div>
+
+            <div class="form-group">
+                <label>จำนวน (Qty):</label>
+                <input type="number" name="qty" value="1" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label>บริษัทคู่ค้า / ลูกค้า (Company):</label>
+                <input type="text" name="company" placeholder="ระบุชื่อบริษัทหรือผู้จำหน่าย" required>
+            </div>
+
+            <div class="form-group">
+                <label>เลขที่ใบงาน (Job Order):</label>
+                <input type="text" name="job_order" placeholder="ระบุเลขที่ Job Order" required>
+            </div>
+
+            <button type="submit" class="btn-submit">บันทึกข้อมูลเข้าสู่ระบบ</button>
         </form>
     </div>
 
@@ -148,51 +144,28 @@
             }, (errorMessage) => {});
         }
 
-        // ฟังก์ชันควบคุมการแสดงผลฟอร์มกรอกข้อมูลตามสถานะที่เลือก
-        function toggleProductFields() {
-            const statusSelect = document.getElementById('statusSelect').value;
-            const productFields = document.getElementById('productFields');
-            const submitBtn = document.getElementById('submitBtn');
-            
-            // ดึงช่อง input ด้านในมาตั้งค่า required
-            const pName = document.getElementById('product_name');
-            const pLot = document.getElementById('lot_number');
-            const pQty = document.getElementById('qty');
-            const pComp = document.getElementById('company');
-            const pJob = document.getElementById('job_order');
+        // ฟังก์ชันสำหรับเปิด/ปิดการแสดงผลช่องกรอกรหัสสินค้าตามสถานะที่เลือก
+        function toggleProductField() {
+            const statusSelect = document.getElementById("statusSelect");
+            const productFieldGroup = document.getElementById("productFieldGroup");
+            const productNameInput = document.getElementById("productNameInput");
 
-            if (statusSelect === 'Outbound') {
-                // ถ้าเลือกเบิกจ่าย ให้แสดงช่องกรอกข้อมูลและปุ่มบันทึก
-                productFields.style.display = 'block';
-                submitBtn.style.display = 'block';
-                
-                pName.required = true;
-                pLot.required = true;
-                pQty.required = true;
-                pComp.required = true;
-                pJob.required = true;
-            } else if (statusSelect === 'Inbound' || statusSelect === 'Cycle Count') {
-                // หากเลือกสถานะอื่น สามารถปรับให้แสดงหรือซ่อนได้ตามต้องการ (ในที่นี้ตั้งให้แสดงเมื่อเลือกสถานะใดๆ เพื่อกรอกข้อมูลได้ครับ)
-                productFields.style.display = 'block';
-                submitBtn.style.display = 'block';
-
-                pName.required = true;
-                pLot.required = true;
-                pQty.required = true;
-                pComp.required = true;
-                pJob.required = true;
+            // หากเลือกเป็น Outbound (เบิกจ่าย) ให้แสดงช่องกรอกสินค้า
+            if (statusSelect.value === "Outbound") {
+                productFieldGroup.style.display = "block";
+                productNameInput.required = true;
             } else {
-                // ถ้ายังไม่ได้เลือก ให้ซ่อนไว้ก่อน
-                productFields.style.display = 'none';
-                submitBtn.style.display = 'none';
-
-                pName.required = false;
-                pLot.required = false;
-                pQty.required = false;
-                pComp.required = false;
-                pJob.required = false;
+                // สถานะอื่นอาจซ่อนหรือเปิดตามต้องการ ในที่นี้ตั้งให้ซ่อนเมื่อไม่ได้เลือกเบิกจ่าย
+                productFieldGroup.style.display = "none";
+                productNameInput.required = false;
+                productNameInput.value = "-"; // ใส่ค่าสำรองกรณีไม่ได้กรอก
             }
         }
+
+        // เรียกทำงานตอนโหลดหน้าเว็บครั้งแรก
+        window.onload = function() {
+            toggleProductField();
+        };
     </script>
 </body>
 </html>
