@@ -26,7 +26,6 @@ def get_google_sheet(sheet_name='DATA_WH'):
 
 @app.route('/')
 def index():
-    location = request.args.get('location', '')
     success = request.args.get('success', '')
     search_query = request.args.get('q', '').strip()
     start_date = request.args.get('start_date', '').strip()
@@ -37,9 +36,9 @@ def index():
         sheet = get_google_sheet('DATA_WH')
         all_rows = sheet.get_all_values()
         
-        # ตรวจสอบโครงสร้าง: [Timestamp/ColA(ถ้ามี), Location(B), Status(C), Item Code(D), Product Name(E), Lot Serial(F), Qty(G), Unit(H)]
         for row in all_rows[1:]:
             if len(row) >= 8:
+                row_time = row[0]
                 row_location = row[1]
                 row_status = row[2]
                 item_code = row[3]
@@ -48,8 +47,6 @@ def index():
                 qty = row[6]
                 unit = row[7]
                 
-                # ใช้คอลัมน์แรกสุด (Col A หรือ Timestamp ถ้ามี) มาเช็ควันที่ หรือเช็คจากข้อมูล
-                row_time = row[0] if row[0] else ''
                 row_date = row_time.split(' ')[0] if ' ' in row_time else ''
                 
                 match_query = True
@@ -81,29 +78,52 @@ def index():
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
 
-    return render_template('index.html', location=location, success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
+    return render_template('index.html', success=success, search_results=search_results, search_query=search_query, start_date=start_date, end_date=end_date)
 
-# API ดึงข้อมูลสินค้าจาก Master_code อัตโนมัติกรณีพิมพ์รหัสเอง
-@app.route('/get_product_info')
-def get_product_info():
+# API สำหรับค้นหารหัสสินค้า เพื่อดึงชื่อ และเช็คว่าอยู่ Location ไหนจากประวัติ Inbound ล่าสุด
+@app.route('/search_outbound')
+def search_outbound():
     code = request.args.get('code', '').strip()
     if not code:
         return jsonify({'success': False})
     
     try:
+        # 1. ดึงข้อมูลจาก Master_code ก่อนเพื่อเอาชื่อสินค้าและหน่วย
         master_sheet = get_google_sheet('Master_code')
-        rows = master_sheet.get_all_values()
-        for row in rows[1:]:
+        master_rows = master_sheet.get_all_values()
+        prod_name = ""
+        unit = ""
+        lot_serial = ""
+        
+        for row in master_rows[1:]:
             if len(row) >= 3 and row[0].strip().lower() == code.lower():
-                return jsonify({
-                    'success': True,
-                    'product_name': row[1],
-                    'unit': row[2],
-                    'lot_serial': row[3] if len(row) > 3 else '',
-                    'description': row[5] if len(row) > 5 else ''
-                })
+                prod_name = row[1]
+                unit = row[2]
+                lot_serial = row[3] if len(row) > 3 else ''
+                break
+
+        # 2. ค้นหา Location ล่าสุดจาก DATA_WH ที่มีการ Inbound สินค้านี้
+        data_sheet = get_google_sheet('DATA_WH')
+        data_rows = data_sheet.get_all_values()
+        found_location = "ไม่พบพิกัดจัดเก็บ (ยังไม่มีประวัติ Inbound)"
+        
+        # วนลูปจากล่างขึ้นบนเพื่อหาพิกัดล่าสุด
+        for row in reversed(data_rows[1:]):
+            if len(row) >= 4 and row[3].strip().lower() == code.lower():
+                if row[2].strip() == 'Inbound':
+                    found_location = row[1]
+                    break
+
+        return jsonify({
+            'success': True,
+            'product_name': prod_name if prod_name else 'ไม่พบใน Master_code',
+            'unit': unit if unit else 'Piece',
+            'lot_serial': lot_serial,
+            'location': found_location
+        })
+
     except Exception as e:
-        print(f"Error fetching Master_code: {e}")
+        print(f"Error search_outbound: {e}")
         
     return jsonify({'success': False})
 
@@ -111,20 +131,18 @@ def get_product_info():
 def submit():
     try:
         location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
-        status = request.form.get('status', '')
+        status = request.form.get('status', 'Outbound')
         item_code = request.form.get('item_code', '')
         product_name = request.form.get('product_name', '')
         lot_serial = request.form.get('lot_serial', '')
         quantity = request.form.get('quantity', '1')
         unit = request.form.get('unit', '')
         
-        # เวลาประเทศไทย (UTC+7)
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
         
         sheet = get_google_sheet('DATA_WH')
-        # บันทึกเรียงตามคอลัมน์ A ถึง H ใน Google Sheets (เว้น A ไว้ หรือใส่เวลา แล้วตามด้วย B=Location ถึง H=Unit)
         sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit])
         
         return redirect(url_for('index', success='1'))

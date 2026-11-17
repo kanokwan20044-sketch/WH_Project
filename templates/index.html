@@ -16,16 +16,12 @@
         input[readonly] { background-color: #edf2f7; color: #4a5568; }
         .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .btn-submit:hover { background-color: #276749; }
-        .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
-        .btn-scanner:hover { background-color: #2b6cb0; }
-        .location-box { padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; }
-        .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
-        .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
+        .btn-action { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; }
+        .btn-action:hover { background-color: #2b6cb0; }
+        .location-box { padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; background-color: #e2e8f0; color: #2d3748; border: 1px solid #cbd5e0; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
-        #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
     </style>
 </head>
 <body>
@@ -35,7 +31,7 @@
 
         {% if request.args.get('success') %}
             <div class="alert-success">
-                ✅ บันทึกข้อมูลเข้าสู่ระบบ Google Sheets เรียบร้อยแล้ว!
+                ✅ บันทึกข้อมูลการทำรายการเรียบร้อยแล้ว!
             </div>
         {% endif %}
 
@@ -44,8 +40,8 @@
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 13px;">คำค้นหา (Item Code, ชื่อสินค้า, Lot หรือ Location):</label>
-                    <input type="text" name="q" placeholder="เช่น CC-001, LOT-20261117 หรือ A-01" value="{{ search_query }}">
+                    <label style="font-size: 13px;">คำค้นหา:</label>
+                    <input type="text" name="q" placeholder="เช่น CC-001, LOT หรือ Location" value="{{ search_query }}">
                 </div>
                 <div class="date-row">
                     <div style="flex: 1;">
@@ -57,7 +53,7 @@
                         <input type="date" name="end_date" value="{{ end_date }}">
                     </div>
                 </div>
-                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติ</button>
+                <button type="submit" class="btn-action" style="margin-top: 5px;">ค้นหาประวัติ</button>
             </form>
 
             {% if search_query or start_date or end_date %}
@@ -70,63 +66,56 @@
                                     <b>{{ item.timestamp }}</b> | 
                                     สถานะ: <b>{{ item.status }}</b> | 
                                     รหัส: <b>{{ item.item_code }}</b> ({{ item.product_name }}) | 
-                                    Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_serial }}</span> | 
-                                    Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> | 
+                                    Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d;">📍 {{ item.location }}</span> | 
                                     จำนวน: {{ item.quantity }} {{ item.unit }}
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
+                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูล</p>
                     {% endif %}
                 </div>
             {% endif %}
         </div>
 
-        <!-- [สแกนครั้งที่ 1] สแกน Location ล็อกสินค้า -->
-        <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
-            📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1): 
-            <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
-        </div>
-
-        <div class="form-group">
-            <button type="button" class="btn-scanner" onclick="startLocationScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
-            <div id="reader"></div>
-        </div>
-
         <!-- ฟอร์มทำรายการ WMS -->
         <form action="/submit" method="POST">
-            <input type="hidden" name="location" value="{{ location }}">
-
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status" id="statusSelect" onchange="handleStatusChange()">
+                    <option value="Outbound" selected>Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
-                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- [สแกนครั้งที่ 2] สแกนบาร์โค้ดสินค้า -->
+            <!-- ช่องกรอกรหัสสินค้าและปุ่มค้นหาสำหรับเบิกจ่าย -->
             <div class="form-group">
-                <label>สแกนครั้งที่ 2: รหัสสินค้า (Item Code):</label>
-                <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
-                <div id="itemReader"></div>
-                <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์หรือสแกนรหัสสินค้าเพื่อดึงข้อมูล..." onkeyup="fetchProductInfo()" required>
+                <label>รหัสสินค้า (Item Code):</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อค้นหา..." required style="flex: 1;">
+                    <button type="button" class="btn-action" style="width: 120px;" onclick="searchProductLocation()">🔍 ค้นหา</button>
+                </div>
+            </div>
+
+            <!-- แสดง Location ที่ค้นพบ -->
+            <div class="location-box" id="locationDisplayBox">
+                📍 พิกัดสินค้า (Location): <b>ยังไม่ได้ค้นหา</b>
+            </div>
+            <input type="hidden" name="location" id="locationInput" value="">
+
+            <div class="form-group">
+                <label>ชื่อสินค้า (Product Name):</label>
+                <input type="text" name="product_name" id="productNameInput" placeholder="แสดงอัตโนมัติเมื่อกดค้นหา..." readonly required>
             </div>
 
             <div class="form-group">
-                <label>ชื่อสินค้า (Product Name): (เด้งขึ้นมาตรวจสอบอัตโนมัติ)</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้าจะแสดงอัตโนมัติ..." required>
-            </div>
-
-            <div class="form-group">
-                <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
+                <label>ล็อตสินค้า (Lot Serial):</label>
                 <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้า..." required>
             </div>
 
             <div class="form-group">
-                <label>จำนวน (Quantity):</label>
+                <label>จำนวนที่ต้องการเบิกจ่าย (Quantity):</label>
                 <input type="number" name="quantity" id="quantityInput" value="1" min="1" required>
             </div>
 
@@ -135,77 +124,39 @@
                 <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." required>
             </div>
 
-            <button type="submit" class="btn-submit">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
+            <button type="submit" class="btn-submit">💾 บันทึกข้อมูลการเบิกจ่าย</button>
         </form>
     </div>
 
     <script>
-        // กล้องครั้งที่ 1: สแกน Location
-        function startLocationScanner() {
-            const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            scanner.render((decodedText) => {
-                window.location.href = "/?location=" + encodeURIComponent(decodedText);
-                scanner.clear();
-            }, (errorMessage) => {});
-        }
-
-        // กล้องครั้งที่ 2: สแกนบาร์โค้ดสินค้า
-        let itemScannerInstance = null;
-        function startItemScanner() {
-            const readerDiv = document.getElementById("itemReader");
-            readerDiv.style.display = "block";
-            
-            if (!itemScannerInstance) {
-                itemScannerInstance = new Html5Qrcode("itemReader");
-            }
-
-            itemScannerInstance.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: 250 },
-                (decodedText) => {
-                    processScannedData(decodedText);
-                    itemScannerInstance.stop().then(() => {
-                        readerDiv.style.display = "none";
-                    }).catch(err => console.log(err));
-                },
-                (errorMessage) => {}
-            ).catch(err => {
-                alert("ไม่สามารถเปิดกล้องได้: " + err);
-            });
-        }
-
-        // ฟังก์ชันแกะข้อความ QR Code ที่คั่นด้วย # (รองรับ 5 ส่วนตามสูตร Excel: ItemCode#Name#Qty#Unit#Lot)
-        function processScannedData(rawText) {
-            if (rawText.includes('#')) {
-                const parts = rawText.split('#');
-                if (parts.length >= 1) document.getElementById("itemCodeInput").value = parts[0].trim();
-                if (parts.length >= 2) document.getElementById("productNameInput").value = parts[1].trim();
-                if (parts.length >= 3) document.getElementById("quantityInput").value = parts[2].trim();
-                if (parts.length >= 4) document.getElementById("unitInput").value = parts[3].trim();
-                if (parts.length >= 5) document.getElementById("lotSerialInput").value = parts[4].trim();
-            } else {
-                document.getElementById("itemCodeInput").value = rawText;
-                fetchProductInfo();
-            }
-        }
-
-        // ฟังก์ชันดึงข้อมูลสำรองจากชีต Master_code (กรณีพิมพ์รหัสเอง)
-        function fetchProductInfo() {
+        // ฟังก์ชันกดปุ่มค้นหา Location จากรหัสสินค้า
+        function searchProductLocation() {
             const code = document.getElementById("itemCodeInput").value.trim();
-            if (code.length < 2) return;
+            if (!code) {
+                alert("กรุณากรอกรหัสสินค้าก่อนกดค้นหา");
+                return;
+            }
 
-            fetch(`/get_product_info?code=${encodeURIComponent(code)}`)
+            fetch(`/search_outbound?code=${encodeURIComponent(code)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         document.getElementById("productNameInput").value = data.product_name;
                         document.getElementById("unitInput").value = data.unit;
-                        if (data.lot_serial) {
-                            document.getElementById("lotSerialInput").value = data.lot_serial;
-                        }
+                        document.getElementById("lotSerialInput").value = data.lot_serial;
+                        
+                        // แสดง Location ที่ค้นพบ
+                        const locBox = document.getElementById("locationDisplayBox");
+                        locBox.innerHTML = `📍 พิกัดสินค้า (Location): <b style="color: #22543d; font-size: 16px;">${data.location}</b>`;
+                        locBox.style.backgroundColor = "#c6f6d5";
+                        locBox.style.borderColor = "#9ae6b4";
+                        
+                        document.getElementById("locationInput").value = data.location;
+                    } else {
+                        alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
                     }
                 })
-                .catch(err => console.error("Error fetching master code:", err));
+                .catch(err => console.error("Error searching product:", err));
         }
 
         // ฟังก์ชันซ่อน/แสดงช่องค้นหา (Cycle Count)
@@ -221,11 +172,6 @@
 
         window.onload = function() {
             handleStatusChange();
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('q') || urlParams.get('start_date')) {
-                document.getElementById("searchSection").style.display = "block";
-                document.getElementById("statusSelect").value = "Cycle Count";
-            }
         };
     </script>
 </body>
