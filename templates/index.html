@@ -4,25 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบ WMS คลังสินค้า - บริษัท ชาช่าไทย จำกัด เชียงราย</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
         .container { max-width: 680px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
         input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
-        .search-section { background: #ebf8ff; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #90cdf4; }
-        .date-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        .search-section { background: #ebf8ff; padding: 20px; border-radius: 10px; margin-bottom: 22px; border: 1px solid #bee3f8; }
         .btn-search { width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; }
         .btn-search:hover { background-color: #2b6cb0; }
-        .stock-warning-box { background-color: #fffbeb; color: #92400e; border: 1px solid #f59e0b; padding: 14px; border-radius: 8px; margin-top: 15px; display: none; font-size: 14px; }
+        .stock-warning-box { background-color: #fffbeb; color: #92400e; border: 1px solid #f59e0b; padding: 14px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; }
         .stock-warning-title { font-weight: 700; color: #b45309; margin-bottom: 8px; font-size: 15px; }
         .stock-item-list { margin: 0; padding-left: 20px; }
         .stock-item-list li { margin-bottom: 6px; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
-        #reader { width: 100%; max-width: 400px; margin: 12px auto 0 auto; }
     </style>
 </head>
 <body>
@@ -36,28 +33,27 @@
             </div>
         {% endif %}
 
-        <!-- กรอบสีฟ้า: ค้นหาประวัติและตรวจนับ -->
+        <!-- กล่องค้นหาประวัติและผลตรวจนับ -->
         <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ</h3>
             <form action="/" method="GET">
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label>คำค้นหา (Item Code, ชื่อสินค้า, Lot หรือ Location):</label>
-                    <input type="text" name="q" placeholder="เช่น FG010004, LOT หรือ W01E0111" value="{{ search_query }}">
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label style="font-size: 13px;">การค้นหา:</label>
+                    <input type="text" name="q" placeholder="พิมพ์รหัสสินค้า ชื่อสินค้า Lot หรือ Location..." value="{{ search_query }}">
                 </div>
-                <div class="date-row">
-                    <div style="flex: 1;">
-                        <label>ตั้งแต่วันที่:</label>
-                        <input type="date" name="start_date" value="{{ start_date }}">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>ถึงวันที่:</label>
-                        <input type="date" name="end_date" value="{{ end_date }}">
-                    </div>
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 13px;">สถานะที่ต้องการทำรายการ:</label>
+                    <select name="filter_status">
+                        <option value="">-- ทุกสถานะ --</option>
+                        <option value="Inbound" {% if filter_status == 'Inbound' %}selected{% endif %}>Inbound</option>
+                        <option value="Outbound" {% if filter_status == 'Outbound' %}selected{% endif %}>Outbound</option>
+                        <option value="Cycle Count" {% if filter_status == 'Cycle Count' %}selected{% endif %}>Cycle Count</option>
+                    </select>
                 </div>
                 <button type="submit" class="btn-search">ค้นหาประวัติ</button>
             </form>
 
-            {% if search_query or start_date or end_date %}
+            {% if search_query or filter_status %}
                 <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #bee3f8;">
                     <strong>ผลการค้นหา:</strong>
                     {% if search_results %}
@@ -80,13 +76,21 @@
             {% endif %}
         </div>
 
-        <!-- กล่องแจ้งเตือนสินค้าคงค้างใน Location ที่เลือก -->
+        <!-- กล่องแจ้งเตือนเมื่อมีสินค้าคงค้างใน Location -->
         <div class="stock-warning-box" id="stockWarningBox">
             <div class="stock-warning-title" id="stockWarningTitle">⚠️ แจ้งเตือน: ล็อกนี้ยังมีสินค้าคงค้างและยังไม่ได้เบิกจ่าย</div>
             <ul class="stock-item-list" id="stockWarningList"></ul>
         </div>
 
-        <div id="reader"></div>
+        <!-- สถานะการทำรายการ (Status) -->
+        <div class="form-group">
+            <label>สถานะการทำรายการ (Status):</label>
+            <select name="status" id="statusSelect" onchange="handleStatusChange()">
+                <option value="Cycle Count" selected>Cycle Count (ตรวจนับสต็อก)</option>
+                <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
+                <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
+            </select>
+        </div>
     </div>
 
     <script>
@@ -120,7 +124,14 @@
                 .catch(err => console.error("Error checking location stock:", err));
         }
 
+        function handleStatusChange() {
+            const statusVal = document.getElementById("statusSelect").value;
+            const searchSection = document.getElementById("searchSection");
+            searchSection.style.display = (statusVal === "Cycle Count") ? "block" : "none";
+        }
+
         window.onload = function() {
+            handleStatusChange();
             if (currentLocation) {
                 checkLocationStock(currentLocation);
             }

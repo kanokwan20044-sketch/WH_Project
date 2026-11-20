@@ -40,8 +40,7 @@ def index():
     location = request.args.get('location', '').strip()
     success = request.args.get('success', '').strip()
     search_query = request.args.get('q', '').strip()
-    start_date = request.args.get('start_date', '').strip()
-    end_date = request.args.get('end_date', '').strip()
+    filter_status = request.args.get('filter_status', '').strip()
     search_results = []
 
     try:
@@ -59,10 +58,11 @@ def index():
                 qty = row[6]
                 unit = row[7]
 
-                row_date = row_time.split(' ')[0] if ' ' in row_time else ''
-
                 match_query = True
-                match_date = True
+                match_status = True
+
+                if filter_status and status.strip().lower() != filter_status.lower():
+                    match_status = False
 
                 if search_query:
                     q_lower = search_query.lower()
@@ -75,17 +75,7 @@ def index():
                     ):
                         match_query = False
 
-                if start_date and end_date and row_date:
-                    if not (start_date <= row_date <= end_date):
-                        match_date = False
-                elif start_date and row_date:
-                    if row_date < start_date:
-                        match_date = False
-                elif end_date and row_date:
-                    if row_date > end_date:
-                        match_date = False
-
-                if (search_query or start_date or end_date) and match_query and match_date:
+                if (search_query or filter_status) and match_query and match_status:
                     search_results.append({
                         'timestamp': row_time,
                         'location': row_location,
@@ -105,12 +95,10 @@ def index():
         success=success,
         search_results=search_results,
         search_query=search_query,
-        start_date=start_date,
-        end_date=end_date
+        filter_status=filter_status
     )
 
 
-# API ตรวจสอบสินค้าคงค้างใน Location ก่อนทำ Inbound
 @app.route('/check_location_stock')
 def check_location_stock():
     loc = request.args.get('location', '').strip()
@@ -165,75 +153,6 @@ def check_location_stock():
     except Exception as e:
         print(f"Error check_location_stock: {e}")
         return jsonify({'success': False, 'items': []})
-
-
-@app.route('/get_product_info')
-def get_product_info():
-    code = request.args.get('code', '').strip()
-    if not code:
-        return jsonify({'success': False})
-
-    try:
-        master_sheet = get_google_sheet('Master_code')
-        rows = master_sheet.get_all_values()
-        for row in rows[1:]:
-            if len(row) >= 3 and row[0].strip().lower() == code.lower():
-                return jsonify({
-                    'success': True,
-                    'product_name': row[1],
-                    'unit': row[2],
-                    'lot_serial': row[3] if len(row) > 3 else '',
-                    'description': row[5] if len(row) > 5 else ''
-                })
-    except Exception as e:
-        print(f"Error fetching Master_code: {e}")
-
-    return jsonify({'success': False})
-
-
-@app.route('/search_outbound')
-def search_outbound():
-    code = request.args.get('code', '').strip()
-    if not code:
-        return jsonify({'success': False})
-
-    try:
-        master_sheet = get_google_sheet('Master_code')
-        master_rows = master_sheet.get_all_values()
-        prod_name = ""
-        unit = ""
-        lot_serial = ""
-
-        for row in master_rows[1:]:
-            if len(row) >= 3 and row[0].strip().lower() == code.lower():
-                prod_name = row[1]
-                unit = row[2]
-                lot_serial = row[3] if len(row) > 3 else ''
-                break
-
-        data_sheet = get_google_sheet('DATA_WH')
-        data_rows = data_sheet.get_all_values()
-        found_locations = []
-
-        for row in reversed(data_rows[1:]):
-            if len(row) >= 4 and row[3].strip().lower() == code.lower():
-                if row[2].strip().lower() == 'inbound' and row[1].strip():
-                    if row[1].strip() not in found_locations:
-                        found_locations.append(row[1].strip())
-
-        location_display = ", ".join(found_locations) if found_locations else "ไม่พบพิกัดจัดเก็บในระบบ"
-
-        return jsonify({
-            'success': True,
-            'product_name': prod_name if prod_name else 'ไม่พบรหัสสินค้าใน Master_code',
-            'unit': unit if unit else 'Piece',
-            'lot_serial': lot_serial,
-            'location': location_display
-        })
-    except Exception as e:
-        print(f"Error search_outbound: {e}")
-
-    return jsonify({'success': False})
 
 
 @app.route('/submit', methods=['POST'])
