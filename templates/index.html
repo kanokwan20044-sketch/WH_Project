@@ -125,36 +125,38 @@
                 </select>
             </div>
 
-            <div class="form-group">
-                <label id="itemCodeLabel">รหัสสินค้า (Item Code):</label>
-                <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
-                    <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อค้นหา..." required style="flex: 1;">
-                    <button type="button" class="btn-search" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
+            <div id="itemFieldsGroup">
+                <div class="form-group">
+                    <label id="itemCodeLabel">รหัสสินค้า (Item Code):</label>
+                    <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
+                        <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;">
+                        <button type="button" class="btn-search" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
+                    </div>
+                    <div id="inboundScannerInputGroup" style="margin-top: 8px;">
+                        <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
+                        <div id="itemReader"></div>
+                    </div>
                 </div>
-                <div id="inboundScannerInputGroup" style="margin-top: 8px;">
-                    <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
-                    <div id="itemReader"></div>
+
+                <div class="form-group">
+                    <label>ชื่อสินค้า (Product Name):</label>
+                    <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้า...">
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label>ชื่อสินค้า (Product Name):</label>
-                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้า..." required>
-            </div>
+                <div class="form-group">
+                    <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
+                    <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้า...">
+                </div>
 
-            <div class="form-group">
-                <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
-                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้า..." required>
-            </div>
+                <div class="form-group">
+                    <label>จำนวน (Quantity):</label>
+                    <input type="number" name="quantity" id="quantityInput" value="1" min="1">
+                </div>
 
-            <div class="form-group">
-                <label>จำนวน (Quantity):</label>
-                <input type="number" name="quantity" id="quantityInput" value="1" min="1" required>
-            </div>
-
-            <div class="form-group">
-                <label>หน่วย (Unit):</label>
-                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." required>
+                <div class="form-group">
+                    <label>หน่วย (Unit):</label>
+                    <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า...">
+                </div>
             </div>
 
             <button type="submit" class="btn-submit">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
@@ -291,6 +293,13 @@
                 .catch(err => console.error("Error:", err));
         }
 
+        function setItemFieldsRequired(isRequired) {
+            ["itemCodeInput", "productNameInput", "lotSerialInput", "quantityInput", "unitInput"].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.required = isRequired;
+            });
+        }
+
         function handleStatusChange() {
             const statusSelect = document.getElementById("statusSelect").value;
             const searchSection = document.getElementById("searchSection");
@@ -299,6 +308,7 @@
             const outboundSearchContainer = document.getElementById("outboundSearchContainer");
             const outboundBox = document.getElementById("outboundLocationBox");
             const warningBox = document.getElementById("stockWarningBox");
+            const itemFieldsGroup = document.getElementById("itemFieldsGroup");
 
             if (statusSelect === "Inbound") {
                 searchSection.style.display = "none";
@@ -306,6 +316,8 @@
                 inboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "none";
                 outboundBox.style.display = "none";
+                itemFieldsGroup.style.display = "block";
+                setItemFieldsRequired(true);
                 document.getElementById("formLocationInput").value = initialInboundLocation;
                 if (existingStockInLocation.length > 0) {
                     warningBox.style.display = "block";
@@ -316,13 +328,17 @@
                 inboundScannerGroup.style.display = "none";
                 outboundSearchContainer.style.display = "flex";
                 outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
+                itemFieldsGroup.style.display = "block";
+                setItemFieldsRequired(true);
                 warningBox.style.display = "none";
             } else if (statusSelect === "Cycle Count") {
                 searchSection.style.display = "block";
                 inboundContainer.style.display = "none";
                 inboundScannerGroup.style.display = "none";
-                outboundSearchContainer.style.display = "flex";
+                outboundSearchContainer.style.display = "none";
                 outboundBox.style.display = "none";
+                itemFieldsGroup.style.display = "none";
+                setItemFieldsRequired(false);
                 warningBox.style.display = "none";
             }
         }
