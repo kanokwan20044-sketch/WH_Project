@@ -13,17 +13,16 @@
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
         input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
-        input[readonly] { background-color: #edf2f7; color: #4a5568; }
         .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .btn-submit:hover { background-color: #276749; }
         .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
         .btn-scanner:hover { background-color: #2b6cb0; }
-        .btn-search { background-color: #d69e2e; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 130px; }
+        .btn-search { background-color: #d69e2e; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 120px; }
         .btn-search:hover { background-color: #b7791f; }
         .location-box { padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; }
         .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
         .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
-        .outbound-location-result { background-color: #e2e8f0; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #cbd5e0; color: #2b6cb0; display: none; }
+        .outbound-location-result { background-color: #ebf8ff; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #90cdf4; color: #2b6cb0; display: none; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
@@ -35,13 +34,13 @@
         <h2>ระบบ WMS คลังสินค้า</h2>
         <div class="subtitle">บริษัท ชาช่าไทย จำกัด เชียงราย</div>
 
-        {% if request.args.get('success') %}
+        {% if success %}
             <div class="alert-success">
                 ✅ บันทึกข้อมูลเข้าสู่ระบบ Google Sheets เรียบร้อยแล้ว!
             </div>
         {% endif %}
 
-        <!-- ส่วนค้นหาประวัติและผลตรวจนับ (แสดงเฉพาะเมื่อเลือกสถานะ Cycle Count) -->
+        <!-- แสดงเฉพาะเมื่อเลือกสถานะ Cycle Count -->
         <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ</h3>
             <form action="/" method="GET">
@@ -68,11 +67,11 @@
                         <ul style="padding-left: 20px; margin-top: 8px; margin-bottom: 0; font-size: 13px;">
                             {% for item in search_results %}
                                 <li style="margin-bottom: 8px;">
-                                    <b>{{ item.timestamp }}</b> | 
-                                    สถานะ: <b>{{ item.status }}</b> | 
-                                    รหัส: <b>{{ item.item_code }}</b> ({{ item.product_name }}) | 
-                                    Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_serial }}</span> | 
-                                    Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> | 
+                                    <b>{{ item.timestamp }}</b> |
+                                    สถานะ: <b>{{ item.status }}</b> |
+                                    รหัส: <b>{{ item.item_code }}</b> ({{ item.product_name }}) |
+                                    Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_serial }}</span> |
+                                    Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> |
                                     จำนวน: {{ item.quantity }} {{ item.unit }}
                                 </li>
                             {% endfor %}
@@ -84,10 +83,10 @@
             {% endif %}
         </div>
 
-        <!-- [สำหรับ Inbound] แสดง Location จากการสแกนครั้งที่ 1 -->
+        <!-- ส่วนสแกน Location ครั้งที่ 1 (สำหรับ Inbound) -->
         <div id="inboundLocationContainer">
             <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
-                📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1): 
+                📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1):
                 <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
             </div>
             <div class="form-group" id="inboundScannerBtnGroup">
@@ -96,32 +95,30 @@
             </div>
         </div>
 
-        <!-- [สำหรับ Outbound] แสดงผล Location ที่ค้นพบ -->
+        <!-- ส่วนแสดง Location ที่ค้นพบ (สำหรับ Outbound) -->
         <div class="outbound-location-result" id="outboundLocationBox">
             📍 พิกัดจัดเก็บสินค้า (Location): <b id="foundLocationText" style="color: #22543d; font-size: 16px;">-</b>
         </div>
 
-        <!-- ฟอร์มทำรายการ WMS -->
-        <form action="/submit" method="POST" id="wmsForm">
+        <form action="/submit" method="POST" id="wmsForm" onsubmit="syncLocationBeforeSubmit()">
             <input type="hidden" name="location" id="formLocationInput" value="{{ location }}">
 
             <div class="form-group">
                 <label>สถานะการทำรายการ (Status):</label>
                 <select name="status" id="statusSelect" onchange="handleStatusChange()">
-                    <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
+                    <option value="Inbound" selected>Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
                     <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
                 </select>
             </div>
 
-            <!-- รหัสสินค้า และปุ่มค้นหาสำหรับ Outbound / สแกนสำหรับ Inbound -->
             <div class="form-group">
                 <label id="itemCodeLabel">รหัสสินค้า (Item Code):</label>
                 <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
                     <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อค้นหา..." required style="flex: 1;">
                     <button type="button" class="btn-search" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
                 </div>
-                <div id="inboundScannerInputGroup" style="display: none; margin-top: 8px;">
+                <div id="inboundScannerInputGroup" style="margin-top: 8px;">
                     <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
                     <div id="itemReader"></div>
                 </div>
@@ -152,19 +149,21 @@
     </div>
 
     <script>
+        const initialInboundLocation = "{{ location|e }}";
+
         function startLocationScanner() {
             const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
             scanner.render((decodedText) => {
                 window.location.href = "/?location=" + encodeURIComponent(decodedText);
                 scanner.clear();
-            }, (errorMessage) => {});
+            }, () => {});
         }
 
         let itemScannerInstance = null;
         function startItemScanner() {
             const readerDiv = document.getElementById("itemReader");
             readerDiv.style.display = "block";
-            
+
             if (!itemScannerInstance) {
                 itemScannerInstance = new Html5Qrcode("itemReader");
             }
@@ -178,7 +177,7 @@
                         readerDiv.style.display = "none";
                     }).catch(err => console.log(err));
                 },
-                (errorMessage) => {}
+                () => {}
             ).catch(err => {
                 alert("ไม่สามารถเปิดกล้องได้: " + err);
             });
@@ -199,6 +198,9 @@
         }
 
         function fetchProductInfo() {
+            const statusVal = document.getElementById("statusSelect").value;
+            if (statusVal === "Outbound") return;
+
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
 
@@ -257,12 +259,13 @@
                 inboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "none";
                 outboundBox.style.display = "none";
+                document.getElementById("formLocationInput").value = initialInboundLocation;
             } else if (statusSelect === "Outbound") {
                 searchSection.style.display = "none";
                 inboundContainer.style.display = "none";
                 inboundScannerGroup.style.display = "none";
                 outboundSearchContainer.style.display = "flex";
-                outboundBox.style.display = "none";
+                outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
             } else if (statusSelect === "Cycle Count") {
                 searchSection.style.display = "block";
                 inboundContainer.style.display = "none";
@@ -272,16 +275,24 @@
             }
         }
 
-        window.onload = function() {
-            document.getElementById("statusSelect").value = "Outbound";
-            handleStatusChange();
+        function syncLocationBeforeSubmit() {
+            const statusSelect = document.getElementById("statusSelect").value;
+            if (statusSelect === "Inbound") {
+                document.getElementById("formLocationInput").value = initialInboundLocation;
+            } else if (statusSelect === "Outbound") {
+                const foundLoc = document.getElementById("foundLocationText").innerText.trim();
+                if (foundLoc && foundLoc !== "-") {
+                    document.getElementById("formLocationInput").value = foundLoc;
+                }
+            }
+        }
 
+        window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('q') || urlParams.get('filter_status')) {
-                document.getElementById("searchSection").style.display = "block";
                 document.getElementById("statusSelect").value = "Cycle Count";
-                handleStatusChange();
             }
+            handleStatusChange();
         };
     </script>
 </body>

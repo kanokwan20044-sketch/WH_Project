@@ -7,7 +7,11 @@ from google.oauth2.service_account import Credentials
 
 app = Flask(__name__)
 
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive'
+]
+
 
 def get_google_sheet(sheet_name='DATA_WH'):
     if os.path.exists('credentials.json'):
@@ -19,15 +23,15 @@ def get_google_sheet(sheet_name='DATA_WH'):
             creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
         else:
             raise Exception("ไม่พบไฟล์หรือข้อมูล Credentials สำหรับเชื่อมต่อ Google Sheets")
-    
+
     client = gspread.authorize(creds)
-    sheet = client.open('Warehouse_Chacha').worksheet(sheet_name)
-    return sheet
+    return client.open('Warehouse_Chacha').worksheet(sheet_name)
+
 
 @app.route('/')
 def index():
-    location = request.args.get('location', '')
-    success = request.args.get('success', '')
+    location = request.args.get('location', '').strip()
+    success = request.args.get('success', '').strip()
     search_query = request.args.get('q', '').strip()
     filter_status = request.args.get('filter_status', '').strip()
     search_results = []
@@ -35,7 +39,7 @@ def index():
     try:
         sheet = get_google_sheet('DATA_WH')
         all_rows = sheet.get_all_values()
-        
+
         for row in all_rows[1:]:
             if len(row) >= 8:
                 row_time = row[0]
@@ -46,7 +50,7 @@ def index():
                 lot_serial = row[5]
                 qty = row[6]
                 unit = row[7]
-                
+
                 match_query = True
                 match_status = True
 
@@ -54,11 +58,14 @@ def index():
                     match_status = False
 
                 if search_query:
-                    if (search_query.lower() not in item_code.lower() and 
-                        search_query.lower() not in product_name.lower() and 
-                        search_query.lower() not in lot_serial.lower() and 
-                        search_query.lower() not in row_location.lower() and
-                        search_query.lower() not in status.lower()):
+                    q_lower = search_query.lower()
+                    if (
+                        q_lower not in item_code.lower()
+                        and q_lower not in product_name.lower()
+                        and q_lower not in lot_serial.lower()
+                        and q_lower not in row_location.lower()
+                        and q_lower not in status.lower()
+                    ):
                         match_query = False
 
                 if (search_query or filter_status) and match_query and match_status:
@@ -84,13 +91,13 @@ def index():
         filter_status=filter_status
     )
 
-# API ดึงข้อมูลจาก Master_code (สำหรับ Inbound หรือพิมพ์รหัส)
+
 @app.route('/get_product_info')
 def get_product_info():
     code = request.args.get('code', '').strip()
     if not code:
         return jsonify({'success': False})
-    
+
     try:
         master_sheet = get_google_sheet('Master_code')
         rows = master_sheet.get_all_values()
@@ -105,23 +112,23 @@ def get_product_info():
                 })
     except Exception as e:
         print(f"Error fetching Master_code: {e}")
-        
+
     return jsonify({'success': False})
 
-# API ค้นหา Location ล่าสุดสำหรับ Outbound
+
 @app.route('/search_outbound')
 def search_outbound():
     code = request.args.get('code', '').strip()
     if not code:
         return jsonify({'success': False})
-    
+
     try:
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
         prod_name = ""
         unit = ""
         lot_serial = ""
-        
+
         for row in master_rows[1:]:
             if len(row) >= 3 and row[0].strip().lower() == code.lower():
                 prod_name = row[1]
@@ -131,50 +138,52 @@ def search_outbound():
 
         data_sheet = get_google_sheet('DATA_WH')
         data_rows = data_sheet.get_all_values()
-        found_location = "ไม่พบพิกัดจัดเก็บในระบบ"
-        
+        found_locations = []
+
         for row in reversed(data_rows[1:]):
             if len(row) >= 4 and row[3].strip().lower() == code.lower():
-                if row[2].strip() == 'Inbound':
-                    found_location = row[1]
-                    break
+                if row[2].strip().lower() == 'inbound' and row[1].strip():
+                    if row[1].strip() not in found_locations:
+                        found_locations.append(row[1].strip())
+
+        location_display = ", ".join(found_locations) if found_locations else "ไม่พบพิกัดจัดเก็บในระบบ"
 
         return jsonify({
             'success': True,
             'product_name': prod_name if prod_name else 'ไม่พบรหัสสินค้าใน Master_code',
             'unit': unit if unit else 'Piece',
             'lot_serial': lot_serial,
-            'location': found_location
+            'location': location_display
         })
-
     except Exception as e:
         print(f"Error search_outbound: {e}")
-        
+
     return jsonify({'success': False})
+
 
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
-        location = request.form.get('location', 'ไม่ได้ระบุพิกัด')
-        status = request.form.get('status', '')
-        item_code = request.form.get('item_code', '')
-        product_name = request.form.get('product_name', '')
-        lot_serial = request.form.get('lot_serial', '')
-        quantity = request.form.get('quantity', '1')
-        unit = request.form.get('unit', '')
-        
+        location = request.form.get('location', '').strip() or 'ไม่ได้ระบุพิกัด'
+        status = request.form.get('status', '').strip()
+        item_code = request.form.get('item_code', '').strip()
+        product_name = request.form.get('product_name', '').strip()
+        lot_serial = request.form.get('lot_serial', '').strip()
+        quantity = request.form.get('quantity', '1').strip()
+        unit = request.form.get('unit', '').strip()
+
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
-        
+
         sheet = get_google_sheet('DATA_WH')
         sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit])
-        
+
         return redirect(url_for('index', success='1'))
-        
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการบันทึกข้อมูล: {e}")
         return f"เกิดข้อผิดพลาดในการบันทึกข้อมูลลง Google Sheets: {e}", 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
