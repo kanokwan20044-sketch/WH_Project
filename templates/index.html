@@ -29,6 +29,7 @@
         .outbound-location-result { background-color: #ebf8ff; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #90cdf4; color: #2b6cb0; display: none; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
+        .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
         #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
     </style>
@@ -44,27 +45,28 @@
             </div>
         {% endif %}
 
-        <!-- หน้าต่าง Cycle Count: เหลือเฉพาะการค้นหาและสถานะที่ต้องการทำรายการ -->
+        <!-- หน้าต่าง Cycle Count: ค้นหาคำค้นหา + ตั้งแต่วันที่ + ถึงวันที่ -->
         <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
-                    <label style="font-size: 13px;">การค้นหา:</label>
-                    <input type="text" name="q" placeholder="พิมพ์รหัสสินค้า ชื่อสินค้า Lot หรือ Location..." value="{{ search_query }}">
+                    <label style="font-size: 13px;">คำค้นหา (Item Code, ชื่อสินค้า, Lot หรือ Location):</label>
+                    <input type="text" name="q" placeholder="เช่น FG010004, LOT หรือ W01E0111" value="{{ search_query }}">
                 </div>
-                <div class="form-group" style="margin-bottom: 12px;">
-                    <label style="font-size: 13px;">สถานะที่ต้องการทำรายการ:</label>
-                    <select name="filter_status">
-                        <option value="">-- ทุกสถานะ --</option>
-                        <option value="Inbound" {% if filter_status == 'Inbound' %}selected{% endif %}>Inbound</option>
-                        <option value="Outbound" {% if filter_status == 'Outbound' %}selected{% endif %}>Outbound</option>
-                        <option value="Cycle Count" {% if filter_status == 'Cycle Count' %}selected{% endif %}>Cycle Count</option>
-                    </select>
+                <div class="date-row">
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px;">ตั้งแต่วันที่:</label>
+                        <input type="date" name="start_date" value="{{ start_date }}">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px;">ถึงวันที่:</label>
+                        <input type="date" name="end_date" value="{{ end_date }}">
+                    </div>
                 </div>
-                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">ค้นหาประวัติ</button>
+                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติ</button>
             </form>
 
-            {% if search_query or filter_status %}
+            {% if search_query or start_date or end_date %}
                 <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e0;">
                     <strong>ผลการค้นหา:</strong>
                     {% if search_results %}
@@ -348,7 +350,7 @@
 
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('q') || urlParams.get('filter_status')) {
+            if (urlParams.get('q') || urlParams.get('start_date') || urlParams.get('end_date')) {
                 document.getElementById("statusSelect").value = "Cycle Count";
             }
             handleStatusChange();

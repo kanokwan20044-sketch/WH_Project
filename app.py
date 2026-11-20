@@ -40,7 +40,8 @@ def index():
     location = request.args.get('location', '').strip()
     success = request.args.get('success', '').strip()
     search_query = request.args.get('q', '').strip()
-    filter_status = request.args.get('filter_status', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
     search_results = []
 
     try:
@@ -58,11 +59,10 @@ def index():
                 qty = row[6]
                 unit = row[7]
 
-                match_query = True
-                match_status = True
+                row_date = row_time.split(' ')[0] if ' ' in row_time else ''
 
-                if filter_status and status.strip().lower() != filter_status.lower():
-                    match_status = False
+                match_query = True
+                match_date = True
 
                 if search_query:
                     q_lower = search_query.lower()
@@ -75,7 +75,17 @@ def index():
                     ):
                         match_query = False
 
-                if (search_query or filter_status) and match_query and match_status:
+                if start_date and end_date and row_date:
+                    if not (start_date <= row_date <= end_date):
+                        match_date = False
+                elif start_date and row_date:
+                    if row_date < start_date:
+                        match_date = False
+                elif end_date and row_date:
+                    if row_date > end_date:
+                        match_date = False
+
+                if (search_query or start_date or end_date) and match_query and match_date:
                     search_results.append({
                         'timestamp': row_time,
                         'location': row_location,
@@ -95,7 +105,8 @@ def index():
         success=success,
         search_results=search_results,
         search_query=search_query,
-        filter_status=filter_status
+        start_date=start_date,
+        end_date=end_date
     )
 
 
