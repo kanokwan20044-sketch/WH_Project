@@ -155,6 +155,75 @@ def check_location_stock():
         return jsonify({'success': False, 'items': []})
 
 
+@app.route('/get_product_info')
+def get_product_info():
+    code = request.args.get('code', '').strip()
+    if not code:
+        return jsonify({'success': False})
+
+    try:
+        master_sheet = get_google_sheet('Master_code')
+        rows = master_sheet.get_all_values()
+        for row in rows[1:]:
+            if len(row) >= 3 and row[0].strip().lower() == code.lower():
+                return jsonify({
+                    'success': True,
+                    'product_name': row[1],
+                    'unit': row[2],
+                    'lot_serial': row[3] if len(row) > 3 else '',
+                    'description': row[5] if len(row) > 5 else ''
+                })
+    except Exception as e:
+        print(f"Error fetching Master_code: {e}")
+
+    return jsonify({'success': False})
+
+
+@app.route('/search_outbound')
+def search_outbound():
+    code = request.args.get('code', '').strip()
+    if not code:
+        return jsonify({'success': False})
+
+    try:
+        master_sheet = get_google_sheet('Master_code')
+        master_rows = master_sheet.get_all_values()
+        prod_name = ""
+        unit = ""
+        lot_serial = ""
+
+        for row in master_rows[1:]:
+            if len(row) >= 3 and row[0].strip().lower() == code.lower():
+                prod_name = row[1]
+                unit = row[2]
+                lot_serial = row[3] if len(row) > 3 else ''
+                break
+
+        data_sheet = get_google_sheet('DATA_WH')
+        data_rows = data_sheet.get_all_values()
+        found_locations = []
+
+        for row in reversed(data_rows[1:]):
+            if len(row) >= 4 and row[3].strip().lower() == code.lower():
+                if row[2].strip().lower() == 'inbound' and row[1].strip():
+                    if row[1].strip() not in found_locations:
+                        found_locations.append(row[1].strip())
+
+        location_display = ", ".join(found_locations) if found_locations else "ไม่พบพิกัดจัดเก็บในระบบ"
+
+        return jsonify({
+            'success': True,
+            'product_name': prod_name if prod_name else 'ไม่พบรหัสสินค้าใน Master_code',
+            'unit': unit if unit else 'Piece',
+            'lot_serial': lot_serial,
+            'location': location_display
+        })
+    except Exception as e:
+        print(f"Error search_outbound: {e}")
+
+    return jsonify({'success': False})
+
+
 @app.route('/submit', methods=['POST'])
 def submit():
     try:

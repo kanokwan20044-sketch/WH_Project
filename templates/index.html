@@ -4,22 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบ WMS คลังสินค้า - บริษัท ชาช่าไทย จำกัด เชียงราย</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
         .container { max-width: 680px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
-        .form-group { margin-bottom: 18px; }
+        .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
         input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
-        .search-section { background: #ebf8ff; padding: 20px; border-radius: 10px; margin-bottom: 22px; border: 1px solid #bee3f8; }
-        .btn-search { width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; }
-        .btn-search:hover { background-color: #2b6cb0; }
+        .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn-submit:hover { background-color: #276749; }
+        .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
+        .btn-scanner:hover { background-color: #2b6cb0; }
+        .btn-search { background-color: #d69e2e; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 120px; }
+        .btn-search:hover { background-color: #b7791f; }
+        .location-box { padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: 600; text-align: center; }
+        .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+        .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
         .stock-warning-box { background-color: #fffbeb; color: #92400e; border: 1px solid #f59e0b; padding: 14px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; }
         .stock-warning-title { font-weight: 700; color: #b45309; margin-bottom: 8px; font-size: 15px; }
         .stock-item-list { margin: 0; padding-left: 20px; }
         .stock-item-list li { margin-bottom: 6px; }
+        .outbound-location-result { background-color: #ebf8ff; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #90cdf4; color: #2b6cb0; display: none; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
+        .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
+        #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
+        #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
     </style>
 </head>
 <body>
@@ -33,15 +44,15 @@
             </div>
         {% endif %}
 
-        <!-- กล่องค้นหาประวัติและผลตรวจนับ -->
+        <!-- หน้าต่าง Cycle Count: เหลือเฉพาะการค้นหาและสถานะที่ต้องการทำรายการ -->
         <div class="search-section" id="searchSection">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ</h3>
+            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
-                <div class="form-group" style="margin-bottom: 12px;">
+                <div class="form-group" style="margin-bottom: 10px;">
                     <label style="font-size: 13px;">การค้นหา:</label>
                     <input type="text" name="q" placeholder="พิมพ์รหัสสินค้า ชื่อสินค้า Lot หรือ Location..." value="{{ search_query }}">
                 </div>
-                <div class="form-group" style="margin-bottom: 14px;">
+                <div class="form-group" style="margin-bottom: 12px;">
                     <label style="font-size: 13px;">สถานะที่ต้องการทำรายการ:</label>
                     <select name="filter_status">
                         <option value="">-- ทุกสถานะ --</option>
@@ -50,11 +61,11 @@
                         <option value="Cycle Count" {% if filter_status == 'Cycle Count' %}selected{% endif %}>Cycle Count</option>
                     </select>
                 </div>
-                <button type="submit" class="btn-search">ค้นหาประวัติ</button>
+                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">ค้นหาประวัติ</button>
             </form>
 
             {% if search_query or filter_status %}
-                <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #bee3f8;">
+                <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e0;">
                     <strong>ผลการค้นหา:</strong>
                     {% if search_results %}
                         <ul style="padding-left: 20px; margin-top: 8px; margin-bottom: 0; font-size: 13px;">
@@ -76,31 +87,88 @@
             {% endif %}
         </div>
 
-        <!-- กล่องแจ้งเตือนเมื่อมีสินค้าคงค้างใน Location -->
-        <div class="stock-warning-box" id="stockWarningBox">
-            <div class="stock-warning-title" id="stockWarningTitle">⚠️ แจ้งเตือน: ล็อกนี้ยังมีสินค้าคงค้างและยังไม่ได้เบิกจ่าย</div>
-            <ul class="stock-item-list" id="stockWarningList"></ul>
+        <!-- ส่วนสแกน Location ครั้งที่ 1 (สำหรับ Inbound) -->
+        <div id="inboundLocationContainer">
+            <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
+                📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1):
+                <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
+            </div>
+
+            <!-- กล่องแจ้งเตือนเมื่อมีสินค้าคงค้างใน Location ที่เลือก -->
+            <div class="stock-warning-box" id="stockWarningBox">
+                <div class="stock-warning-title" id="stockWarningTitle">⚠️ แจ้งเตือน: ล็อกนี้ยังมีสินค้าคงค้างและยังไม่ได้เบิกจ่าย</div>
+                <ul class="stock-item-list" id="stockWarningList"></ul>
+            </div>
+
+            <div class="form-group" id="inboundScannerBtnGroup">
+                <button type="button" class="btn-scanner" onclick="startLocationScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
+                <div id="reader"></div>
+            </div>
         </div>
 
-        <!-- สถานะการทำรายการ (Status) -->
-        <div class="form-group">
-            <label>สถานะการทำรายการ (Status):</label>
-            <select name="status" id="statusSelect" onchange="handleStatusChange()">
-                <option value="Cycle Count" selected>Cycle Count (ตรวจนับสต็อก)</option>
-                <option value="Inbound">Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
-                <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
-            </select>
+        <!-- ส่วนแสดง Location ที่ค้นพบ (สำหรับ Outbound) -->
+        <div class="outbound-location-result" id="outboundLocationBox">
+            📍 พิกัดจัดเก็บสินค้า (Location): <b id="foundLocationText" style="color: #22543d; font-size: 16px;">-</b>
         </div>
+
+        <form action="/submit" method="POST" id="wmsForm" onsubmit="return handleFormSubmit()">
+            <input type="hidden" name="location" id="formLocationInput" value="{{ location }}">
+
+            <div class="form-group">
+                <label>สถานะการทำรายการ (Status):</label>
+                <select name="status" id="statusSelect" onchange="handleStatusChange()">
+                    <option value="Inbound" selected>Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
+                    <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
+                    <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label id="itemCodeLabel">รหัสสินค้า (Item Code):</label>
+                <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
+                    <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อค้นหา..." required style="flex: 1;">
+                    <button type="button" class="btn-search" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
+                </div>
+                <div id="inboundScannerInputGroup" style="margin-top: 8px;">
+                    <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
+                    <div id="itemReader"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>ชื่อสินค้า (Product Name):</label>
+                <input type="text" name="product_name" id="productNameInput" placeholder="ชื่อสินค้า..." required>
+            </div>
+
+            <div class="form-group">
+                <label>ล็อตสินค้า (Lot Serial YYYYMMDD):</label>
+                <input type="text" name="lot_serial" id="lotSerialInput" placeholder="เลขที่ล็อตสินค้า..." required>
+            </div>
+
+            <div class="form-group">
+                <label>จำนวน (Quantity):</label>
+                <input type="number" name="quantity" id="quantityInput" value="1" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label>หน่วย (Unit):</label>
+                <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า..." required>
+            </div>
+
+            <button type="submit" class="btn-submit">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
+        </form>
     </div>
 
     <script>
-        const currentLocation = "{{ location|e }}";
+        const initialInboundLocation = "{{ location|e }}";
+        let existingStockInLocation = [];
 
         function checkLocationStock(loc) {
             const warningBox = document.getElementById("stockWarningBox");
             const warningList = document.getElementById("stockWarningList");
             const warningTitle = document.getElementById("stockWarningTitle");
 
+            existingStockInLocation = [];
             warningList.innerHTML = "";
             warningBox.style.display = "none";
 
@@ -110,6 +178,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.has_stock && data.items.length > 0) {
+                        existingStockInLocation = data.items;
                         warningTitle.innerText = `⚠️ แจ้งเตือน: ล็อก "${data.location}" มีสินค้าค้างอยู่และยังไม่ได้เบิกจ่าย`;
                         data.items.forEach(item => {
                             const li = document.createElement("li");
@@ -118,22 +187,173 @@
                                 ` | คงเหลือ: <b>${item.quantity} ${item.unit}</b>`;
                             warningList.appendChild(li);
                         });
-                        warningBox.style.display = "block";
+                        if (document.getElementById("statusSelect").value === "Inbound") {
+                            warningBox.style.display = "block";
+                        }
                     }
                 })
                 .catch(err => console.error("Error checking location stock:", err));
         }
 
-        function handleStatusChange() {
+        function startLocationScanner() {
+            const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            scanner.render((decodedText) => {
+                window.location.href = "/?location=" + encodeURIComponent(decodedText);
+                scanner.clear();
+            }, () => {});
+        }
+
+        let itemScannerInstance = null;
+        function startItemScanner() {
+            const readerDiv = document.getElementById("itemReader");
+            readerDiv.style.display = "block";
+
+            if (!itemScannerInstance) {
+                itemScannerInstance = new Html5Qrcode("itemReader");
+            }
+
+            itemScannerInstance.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    processScannedData(decodedText);
+                    itemScannerInstance.stop().then(() => {
+                        readerDiv.style.display = "none";
+                    }).catch(err => console.log(err));
+                },
+                () => {}
+            ).catch(err => {
+                alert("ไม่สามารถเปิดกล้องได้: " + err);
+            });
+        }
+
+        function processScannedData(rawText) {
+            if (rawText.includes('#')) {
+                const parts = rawText.split('#');
+                if (parts.length >= 1) document.getElementById("itemCodeInput").value = parts[0].trim();
+                if (parts.length >= 2) document.getElementById("productNameInput").value = parts[1].trim();
+                if (parts.length >= 3) document.getElementById("quantityInput").value = parts[2].trim();
+                if (parts.length >= 4) document.getElementById("unitInput").value = parts[3].trim();
+                if (parts.length >= 5) document.getElementById("lotSerialInput").value = parts[4].trim();
+            } else {
+                document.getElementById("itemCodeInput").value = rawText;
+                fetchProductInfo();
+            }
+        }
+
+        function fetchProductInfo() {
             const statusVal = document.getElementById("statusSelect").value;
+            if (statusVal === "Outbound") return;
+
+            const code = document.getElementById("itemCodeInput").value.trim();
+            if (code.length < 2) return;
+
+            fetch(`/get_product_info?code=${encodeURIComponent(code)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("productNameInput").value = data.product_name;
+                        document.getElementById("unitInput").value = data.unit;
+                        if (data.lot_serial) {
+                            document.getElementById("lotSerialInput").value = data.lot_serial;
+                        }
+                    }
+                })
+                .catch(err => console.error("Error fetching master code:", err));
+        }
+
+        function searchOutboundLocation() {
+            const code = document.getElementById("itemCodeInput").value.trim();
+            if (!code) {
+                alert("กรุณากรอกรหัสสินค้าก่อนกดค้นหา");
+                return;
+            }
+
+            fetch(`/search_outbound?code=${encodeURIComponent(code)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("productNameInput").value = data.product_name;
+                        document.getElementById("unitInput").value = data.unit;
+                        if (data.lot_serial) {
+                            document.getElementById("lotSerialInput").value = data.lot_serial;
+                        }
+
+                        document.getElementById("foundLocationText").innerText = data.location;
+                        document.getElementById("outboundLocationBox").style.display = "block";
+                        document.getElementById("formLocationInput").value = data.location;
+                    } else {
+                        alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
+                    }
+                })
+                .catch(err => console.error("Error:", err));
+        }
+
+        function handleStatusChange() {
+            const statusSelect = document.getElementById("statusSelect").value;
             const searchSection = document.getElementById("searchSection");
-            searchSection.style.display = (statusVal === "Cycle Count") ? "block" : "none";
+            const inboundContainer = document.getElementById("inboundLocationContainer");
+            const inboundScannerGroup = document.getElementById("inboundScannerInputGroup");
+            const outboundSearchContainer = document.getElementById("outboundSearchContainer");
+            const outboundBox = document.getElementById("outboundLocationBox");
+            const warningBox = document.getElementById("stockWarningBox");
+
+            if (statusSelect === "Inbound") {
+                searchSection.style.display = "none";
+                inboundContainer.style.display = "block";
+                inboundScannerGroup.style.display = "block";
+                outboundSearchContainer.style.display = "none";
+                outboundBox.style.display = "none";
+                document.getElementById("formLocationInput").value = initialInboundLocation;
+                if (existingStockInLocation.length > 0) {
+                    warningBox.style.display = "block";
+                }
+            } else if (statusSelect === "Outbound") {
+                searchSection.style.display = "none";
+                inboundContainer.style.display = "none";
+                inboundScannerGroup.style.display = "none";
+                outboundSearchContainer.style.display = "flex";
+                outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
+                warningBox.style.display = "none";
+            } else if (statusSelect === "Cycle Count") {
+                searchSection.style.display = "block";
+                inboundContainer.style.display = "none";
+                inboundScannerGroup.style.display = "none";
+                outboundSearchContainer.style.display = "flex";
+                outboundBox.style.display = "none";
+                warningBox.style.display = "none";
+            }
+        }
+
+        function handleFormSubmit() {
+            const statusSelect = document.getElementById("statusSelect").value;
+            if (statusSelect === "Inbound") {
+                document.getElementById("formLocationInput").value = initialInboundLocation;
+                if (existingStockInLocation.length > 0) {
+                    const summaryText = existingStockInLocation
+                        .map(item => `- รหัส: ${item.item_code} | ชื่อ: ${item.product_name} (คงเหลือ ${item.quantity} ${item.unit})`)
+                        .join("\n");
+                    return confirm(
+                        `⚠️ ล็อก "${initialInboundLocation}" ยังมีสินค้าคงค้างและยังไม่ได้เบิกจ่าย:\n\n${summaryText}\n\nต้องการนำสินค้าเข้าล็อกนี้ต่อหรือไม่?`
+                    );
+                }
+            } else if (statusSelect === "Outbound") {
+                const foundLoc = document.getElementById("foundLocationText").innerText.trim();
+                if (foundLoc && foundLoc !== "-") {
+                    document.getElementById("formLocationInput").value = foundLoc;
+                }
+            }
+            return true;
         }
 
         window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('q') || urlParams.get('filter_status')) {
+                document.getElementById("statusSelect").value = "Cycle Count";
+            }
             handleStatusChange();
-            if (currentLocation) {
-                checkLocationStock(currentLocation);
+            if (initialInboundLocation) {
+                checkLocationStock(initialInboundLocation);
             }
         };
     </script>
