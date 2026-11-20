@@ -28,12 +28,20 @@ def get_google_sheet(sheet_name='DATA_WH'):
     return client.open('Warehouse_Chacha').worksheet(sheet_name)
 
 
+def parse_qty(val):
+    try:
+        return float(str(val).replace(',', '').strip())
+    except Exception:
+        return 0.0
+
+
 @app.route('/')
 def index():
     location = request.args.get('location', '').strip()
     success = request.args.get('success', '').strip()
     search_query = request.args.get('q', '').strip()
-    filter_status = request.args.get('filter_status', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
     search_results = []
 
     try:
@@ -51,11 +59,10 @@ def index():
                 qty = row[6]
                 unit = row[7]
 
-                match_query = True
-                match_status = True
+                row_date = row_time.split(' ')[0] if ' ' in row_time else ''
 
-                if filter_status and status.strip().lower() != filter_status.lower():
-                    match_status = False
+                match_query = True
+                match_date = True
 
                 if search_query:
                     q_lower = search_query.lower()
@@ -68,7 +75,17 @@ def index():
                     ):
                         match_query = False
 
-                if (search_query or filter_status) and match_query and match_status:
+                if start_date and end_date and row_date:
+                    if not (start_date <= row_date <= end_date):
+                        match_date = False
+                elif start_date and row_date:
+                    if row_date < start_date:
+                        match_date = False
+                elif end_date and row_date:
+                    if row_date > end_date:
+                        match_date = False
+
+                if (search_query or start_date or end_date) and match_query and match_date:
                     search_results.append({
                         'timestamp': row_time,
                         'location': row_location,
@@ -88,8 +105,66 @@ def index():
         success=success,
         search_results=search_results,
         search_query=search_query,
-        filter_status=filter_status
+        start_date=start_date,
+        end_date=end_date
     )
+
+
+# API ตรวจสอบสินค้าคงค้างใน Location ก่อนทำ Inbound
+@app.route('/check_location_stock')
+def check_location_stock():
+    loc = request.args.get('location', '').strip()
+    if not loc:
+        return jsonify({'success': False, 'items': []})
+
+    try:
+        sheet = get_google_sheet('DATA_WH')
+        all_rows = sheet.get_all_values()
+
+        stock_map = {}
+        for row in all_rows[1:]:
+            if len(row) >= 8:
+                row_loc = row[1].strip()
+                if row_loc.lower() != loc.lower():
+                    continue
+
+                status = row[2].strip().lower()
+                item_code = row[3].strip()
+                product_name = row[4].strip()
+                lot_serial = row[5].strip()
+                qty = parse_qty(row[6])
+                unit = row[7].strip()
+
+                key = (item_code, product_name, lot_serial, unit)
+                if key not in stock_map:
+                    stock_map[key] = 0.0
+
+                if status == 'inbound':
+                    stock_map[key] += qty
+                elif status == 'outbound':
+                    stock_map[key] -= qty
+
+        active_items = []
+        for (item_code, product_name, lot_serial, unit), balance in stock_map.items():
+            if balance > 0:
+                qty_formatted = int(balance) if balance.is_integer() else round(balance, 2)
+                active_items.append({
+                    'item_code': item_code,
+                    'product_name': product_name,
+                    'lot_serial': lot_serial,
+                    'quantity': qty_formatted,
+                    'unit': unit
+                })
+
+        return jsonify({
+            'success': True,
+            'location': loc,
+            'has_stock': len(active_items) > 0,
+            'items': active_items
+        })
+    except Exception as e:
+        print(f"Error check_location_stock: {e}")
+        return jsonify({'success': False, 'items': []})
 
 
 @app.route('/get_product_info')
