@@ -26,6 +26,12 @@
         .stock-warning-title { font-weight: 700; color: #b45309; margin-bottom: 8px; font-size: 15px; }
         .stock-item-list { margin: 0; padding-left: 20px; }
         .stock-item-list li { margin-bottom: 6px; }
+        .outbound-lot-picker { background-color: #ebf8ff; border: 1px solid #90cdf4; border-radius: 8px; padding: 14px; margin-bottom: 20px; display: none; }
+        .outbound-lot-title { font-weight: 700; color: #2b6cb0; font-size: 14px; margin-bottom: 10px; }
+        .lot-choice-btn { display: block; width: 100%; text-align: left; background: #ffffff; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: #2d3748; transition: all 0.15s ease; }
+        .lot-choice-btn:last-child { margin-bottom: 0; }
+        .lot-choice-btn:hover { background: #e6fffa; border-color: #319795; }
+        .lot-choice-btn.selected { background: #c6f6d5; border-color: #2f855a; color: #22543d; font-weight: 600; }
         .outbound-location-result { background-color: #ebf8ff; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #90cdf4; color: #2b6cb0; display: none; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
@@ -106,6 +112,12 @@
                 <button type="button" class="btn-scanner" onclick="startLocationScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
                 <div id="reader"></div>
             </div>
+        </div>
+
+        <!-- กล่องให้เลือกรายการ Lot เมื่อค้นหารหัสสินค้าใน Outbound -->
+        <div class="outbound-lot-picker" id="outboundLotPicker">
+            <div class="outbound-lot-title">📦 เลือกรายการ Lot สินค้าที่ต้องการเบิกจ่าย:</div>
+            <div id="outboundLotChoices"></div>
         </div>
 
         <!-- ส่วนแสดง Location ที่ค้นพบ (สำหรับ Outbound) -->
@@ -266,6 +278,19 @@
                 .catch(err => console.error("Error fetching master code:", err));
         }
 
+        function selectOutboundOption(opt, btnElement) {
+            document.querySelectorAll(".lot-choice-btn").forEach(b => b.classList.remove("selected"));
+            if (btnElement) btnElement.classList.add("selected");
+
+            document.getElementById("productNameInput").value = opt.product_name || "";
+            document.getElementById("lotSerialInput").value = (opt.lot_serial && opt.lot_serial !== "-") ? opt.lot_serial : "";
+            document.getElementById("unitInput").value = opt.unit || "Piece";
+            document.getElementById("foundLocationText").innerText = opt.location || "ไม่ระบุพิกัด";
+            document.getElementById("outboundLocationBox").style.display = "block";
+            document.getElementById("formLocationInput").value = opt.location || "";
+            document.getElementById("quantityInput").focus();
+        }
+
         function searchOutboundLocation() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (!code) {
@@ -273,19 +298,42 @@
                 return;
             }
 
+            const pickerBox = document.getElementById("outboundLotPicker");
+            const choicesDiv = document.getElementById("outboundLotChoices");
+            choicesDiv.innerHTML = "";
+            pickerBox.style.display = "none";
+
             fetch(`/search_outbound?code=${encodeURIComponent(code)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        document.getElementById("productNameInput").value = data.product_name;
-                        document.getElementById("unitInput").value = data.unit;
-                        if (data.lot_serial) {
-                            document.getElementById("lotSerialInput").value = data.lot_serial;
-                        }
+                        document.getElementById("productNameInput").value = data.product_name || "";
+                        document.getElementById("unitInput").value = data.unit || "Piece";
 
-                        document.getElementById("foundLocationText").innerText = data.location;
-                        document.getElementById("outboundLocationBox").style.display = "block";
-                        document.getElementById("formLocationInput").value = data.location;
+                        const options = data.options || [];
+                        if (options.length > 0) {
+                            pickerBox.style.display = "block";
+                            options.forEach((opt, idx) => {
+                                const btn = document.createElement("button");
+                                btn.type = "button";
+                                btn.className = "lot-choice-btn";
+                                const balText = opt.balance > 0 ? `คงเหลือ: <b>${opt.balance} ${opt.unit}</b>` : `<span style="color:#a0aec0;">ประวัติรับเข้า</span>`;
+                                btn.innerHTML = `Lot: <b style="color:#b7791f;">${opt.lot_serial}</b> | Location: <b style="color:#22543d;">📍 ${opt.location}</b> | ${balText}`;
+                                btn.onclick = function() {
+                                    selectOutboundOption(opt, btn);
+                                };
+                                choicesDiv.appendChild(btn);
+
+                                // หากมีตัวเลือกเดียว ให้เลือกอัตโนมัติทันที
+                                if (options.length === 1 && idx === 0) {
+                                    selectOutboundOption(opt, btn);
+                                }
+                            });
+                        } else {
+                            document.getElementById("foundLocationText").innerText = "ไม่พบพิกัดจัดเก็บในระบบ";
+                            document.getElementById("outboundLocationBox").style.display = "block";
+                            document.getElementById("formLocationInput").value = "ไม่พบพิกัดจัดเก็บในระบบ";
+                        }
                     } else {
                         alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
                     }
@@ -306,6 +354,7 @@
             const inboundContainer = document.getElementById("inboundLocationContainer");
             const inboundScannerGroup = document.getElementById("inboundScannerInputGroup");
             const outboundSearchContainer = document.getElementById("outboundSearchContainer");
+            const outboundLotPicker = document.getElementById("outboundLotPicker");
             const outboundBox = document.getElementById("outboundLocationBox");
             const warningBox = document.getElementById("stockWarningBox");
             const itemFieldsGroup = document.getElementById("itemFieldsGroup");
@@ -315,6 +364,7 @@
                 inboundContainer.style.display = "block";
                 inboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "none";
+                outboundLotPicker.style.display = "none";
                 outboundBox.style.display = "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
@@ -327,6 +377,9 @@
                 inboundContainer.style.display = "none";
                 inboundScannerGroup.style.display = "none";
                 outboundSearchContainer.style.display = "flex";
+                if (document.getElementById("outboundLotChoices").children.length > 0) {
+                    outboundLotPicker.style.display = "block";
+                }
                 outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
@@ -336,6 +389,7 @@
                 inboundContainer.style.display = "none";
                 inboundScannerGroup.style.display = "none";
                 outboundSearchContainer.style.display = "none";
+                outboundLotPicker.style.display = "none";
                 outboundBox.style.display = "none";
                 itemFieldsGroup.style.display = "none";
                 setItemFieldsRequired(false);

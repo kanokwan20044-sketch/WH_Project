@@ -35,6 +35,10 @@ def parse_qty(val):
         return 0.0
 
 
+def format_qty(num):
+    return int(num) if float(num).is_integer() else round(float(num), 2)
+
+
 @app.route('/')
 def index():
     location = request.args.get('location', '').strip()
@@ -146,12 +150,11 @@ def check_location_stock():
         active_items = []
         for (item_code, product_name, lot_serial, unit), balance in stock_map.items():
             if balance > 0:
-                qty_formatted = int(balance) if balance.is_integer() else round(balance, 2)
                 active_items.append({
                     'item_code': item_code,
                     'product_name': product_name,
                     'lot_serial': lot_serial,
-                    'quantity': qty_formatted,
+                    'quantity': format_qty(balance),
                     'unit': unit
                 })
 
@@ -199,35 +202,78 @@ def search_outbound():
     try:
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
-        prod_name = ""
-        unit = ""
-        lot_serial = ""
+        master_name = ""
+        master_unit = ""
 
         for row in master_rows[1:]:
             if len(row) >= 3 and row[0].strip().lower() == code.lower():
-                prod_name = row[1]
-                unit = row[2]
-                lot_serial = row[3] if len(row) > 3 else ''
+                master_name = row[1].strip()
+                master_unit = row[2].strip()
                 break
 
         data_sheet = get_google_sheet('DATA_WH')
         data_rows = data_sheet.get_all_values()
-        found_locations = []
 
-        for row in reversed(data_rows[1:]):
-            if len(row) >= 4 and row[3].strip().lower() == code.lower():
-                if row[2].strip().lower() == 'inbound' and row[1].strip():
-                    if row[1].strip() not in found_locations:
-                        found_locations.append(row[1].strip())
+        # รวมยอดคงเหลือแยกตาม (lot_serial, location, product_name, unit) สำหรับรหัสสินค้านี้
+        lot_stock = {}
+        inbound_records = []
 
-        location_display = ", ".join(found_locations) if found_locations else "ไม่พบพิกัดจัดเก็บในระบบ"
+        for row in data_rows[1:]:
+            if len(row) >= 8 and row[3].strip().lower() == code.lower():
+                row_loc = row[1].strip()
+                status = row[2].strip().lower()
+                prod_name = row[4].strip() or master_name or 'ไม่ระบุชื่อสินค้า'
+                lot_serial = row[5].strip()
+                qty = parse_qty(row[6])
+                unit = row[7].strip() or master_unit or 'Piece'
+
+                key = (lot_serial, row_loc, prod_name, unit)
+                if key not in lot_stock:
+                    lot_stock[key] = 0.0
+
+                if status == 'inbound':
+                    lot_stock[key] += qty
+                    inbound_records.append({
+                        'product_name': prod_name,
+                        'lot_serial': lot_serial,
+                        'location': row_loc if row_loc else 'ไม่ระบุพิกัด',
+                        'unit': unit
+                    })
+                elif status == 'outbound':
+                    lot_stock[key] -= qty
+
+        options = []
+        for (lot_serial, row_loc, prod_name, unit), balance in lot_stock.items():
+            if balance > 0:
+                options.append({
+                    'product_name': prod_name,
+                    'lot_serial': lot_serial if lot_serial else '-',
+                    'location': row_loc if row_loc else 'ไม่ระบุพิกัด',
+                    'balance': format_qty(balance),
+                    'unit': unit
+                })
+
+        # หากยอดคงเหลือเป็น 0 หรือไม่เคยมีรายการ ให้ดึงรายการ Lot จากประวัติ Inbound ล่าสุดมาให้เลือกแทน
+        if not options and inbound_records:
+            seen = set()
+            for rec in reversed(inbound_records):
+                uniq = (rec['lot_serial'], rec['location'], rec['product_name'], rec['unit'])
+                if uniq not in seen:
+                    seen.add(uniq)
+                    options.append({
+                        'product_name': rec['product_name'],
+                        'lot_serial': rec['lot_serial'] if rec['lot_serial'] else '-',
+                        'location': rec['location'],
+                        'balance': 0,
+                        'unit': rec['unit']
+                    })
 
         return jsonify({
             'success': True,
-            'product_name': prod_name if prod_name else 'ไม่พบรหัสสินค้าใน Master_code',
-            'unit': unit if unit else 'Piece',
-            'lot_serial': lot_serial,
-            'location': location_display
+            'item_code': code,
+            'product_name': master_name if master_name else (options[0]['product_name'] if options else 'ไม่พบรหัสสินค้าใน Master_code'),
+            'unit': master_unit if master_unit else (options[0]['unit'] if options else 'Piece'),
+            'options': options
         })
     except Exception as e:
         print(f"Error search_outbound: {e}")
