@@ -1093,15 +1093,12 @@
 
                     if (data.success) {
                         const defaultName = data.product_name || "";
-                        const defaultUnit = data.unit || "Pack";
                         document.getElementById("productNameInput").value = defaultName;
-                        document.getElementById("unitInput").value = defaultUnit;
-                        syncUnitPresetButtons();
 
                         const rawOptions = data.options || [];
                         const uniqueMap = new Map();
                         rawOptions.forEach(opt => {
-                            const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}`;
+                            const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}__${String(opt.unit || "").trim().toLowerCase()}`;
                             if (!uniqueMap.has(k)) {
                                 uniqueMap.set(k, opt);
                             }
@@ -1118,13 +1115,16 @@
                                 btn.innerHTML = `Lot: <b style="color:#b45309;">${opt.lot_serial}</b> | Location: <b style="color:#15803d;">📍 ${opt.location}</b> | ${balText}`;
                                 btn.onclick = function() { selectOutboundOption(opt, btn); };
                                 choicesDiv.appendChild(btn);
-                                if (options.length === 1 && idx === 0) selectOutboundOption(opt, btn);
+                                if (idx === 0) selectOutboundOption(opt, btn);
                             });
                         } else {
+                            const fallbackUnit = data.unit || "Pack";
+                            document.getElementById("unitInput").value = fallbackUnit;
+                            syncUnitPresetButtons();
                             document.getElementById("foundLocationText").innerText = "ไม่พบพิกัดจัดเก็บในระบบ";
                             document.getElementById("outboundLocationBox").style.display = "block";
                             document.getElementById("formLocationInput").value = "ไม่พบพิกัดจัดเก็บในระบบ";
-                            updateOutboundSummary(code, defaultName, "-", "ไม่พบพิกัดจัดเก็บในระบบ", defaultUnit);
+                            updateOutboundSummary(code, defaultName, "-", "ไม่พบพิกัดจัดเก็บในระบบ", fallbackUnit);
                         }
                     } else {
                         alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
