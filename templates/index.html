@@ -56,7 +56,6 @@
         .tag-status-cycle { background-color: #e2e8f0; color: #4a5568; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
         .tag-location { background-color: #feebc8; color: #7b341e; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; }
 
-        /* กล่องยอดสรุปผลการค้นหา Cycle Count */
         .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
         .summary-card { padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e0; background: #f8fafc; }
         .summary-label { font-size: 12px; color: #4a5568; margin-bottom: 4px; }
@@ -67,6 +66,30 @@
         .item-breakdown-box { margin-top: 10px; padding: 10px 12px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; }
         .item-breakdown-box ul { margin: 6px 0 0 0; padding-left: 18px; }
         .item-breakdown-box li { margin-bottom: 4px; }
+
+        /* ส่วนสร้างและปริ้นป้าย QR Code แปะสินค้า */
+        .qr-label-section { background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 10px; padding: 20px; display: none; margin-bottom: 20px; }
+        .qr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .printable-label-card { border: 2px solid #1a202c; border-radius: 8px; background: #ffffff; padding: 14px; display: flex; gap: 14px; align-items: center; margin-top: 16px; }
+        .printable-label-qr img { width: 130px; height: 130px; display: block; }
+        .printable-label-info { font-size: 13px; line-height: 1.55; color: #1a202c; word-break: break-word; }
+        .btn-print-label { width: 100%; background-color: #2b6cb0; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+        .btn-print-label:hover { background-color: #2c5282; }
+
+        @media (max-width: 640px) {
+            .qr-grid-2 { grid-template-columns: 1fr; }
+            .printable-label-card { flex-direction: column; text-align: center; }
+        }
+
+        @media print {
+            body { background: white; padding: 0; margin: 0; }
+            .container > :not(.qr-label-section),
+            .qr-label-section > :not(.printable-label-card),
+            .btn-print-label { display: none !important; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; }
+            .qr-label-section { display: block !important; border: none; padding: 0; margin: 0; background: white; }
+            .printable-label-card { margin: 0; border: 2px solid #000; page-break-inside: avoid; }
+        }
     </style>
 </head>
 <body>
@@ -143,8 +166,6 @@
                                 </tbody>
                             </table>
                         </div>
-
-                        <!-- ยอดสรุปจากผลการค้นหา -->
                         <div id="searchSummaryContainer"></div>
                     {% else %}
                         <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0; font-size: 13px;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
@@ -160,7 +181,6 @@
                 <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
             </div>
 
-            <!-- กล่องแจ้งเตือนและล็อกไม่ให้กรอก/สแกนต่อ เมื่อล็อกนี้มีสินค้าอยู่แล้ว -->
             <div class="stock-lock-box" id="stockLockBox">
                 <div class="stock-lock-title" id="stockLockTitle">🚫 ล็อกนี้มีสินค้าอยู่แล้ว ไม่สามารถกรอกหรือสแกนเพิ่มได้</div>
                 <ul class="stock-item-list" id="stockLockList"></ul>
@@ -202,14 +222,68 @@
                     <option value="Inbound" selected>Inbound (นำเข้าจัดเก็บเข้าล็อก)</option>
                     <option value="Outbound">Outbound (เบิกจ่ายสินค้า)</option>
                     <option value="Cycle Count">Cycle Count (ตรวจนับสต็อก)</option>
+                    <option value="Create QR Label">Create QR Label (สร้าง & ปริ้น QR Code แปะสินค้า)</option>
                 </select>
+            </div>
+
+            <!-- หน้าสร้าง & ปริ้นป้าย QR Code แปะบนสินค้า -->
+            <div class="qr-label-section" id="qrLabelSection">
+                <h3 style="margin-top: 0; color: #1a365d; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า</h3>
+
+                <div class="qr-grid-2">
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Item Code:</label>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="qrItemCode" placeholder="เช่น FG010175" onchange="fetchMasterForQR()">
+                            <button type="button" onclick="fetchMasterForQR()" style="background:#3182ce;color:white;border:none;border-radius:6px;padding:0 12px;cursor:pointer;font-weight:600;">ดึง</button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Lot Serial (YYYYMMDD):</label>
+                        <input type="text" id="qrLotSerial" placeholder="เช่น 20261123" oninput="updateQRLabelPreview()">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label>Description (ชื่อ/รายละเอียดสินค้า):</label>
+                    <input type="text" id="qrDescription" placeholder="รายละเอียดสินค้า..." oninput="updateQRLabelPreview()">
+                </div>
+
+                <div class="qr-grid-2">
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Pallet No.:</label>
+                        <input type="text" id="qrPalletNo" placeholder="เลขพาเลท..." oninput="updateQRLabelPreview()">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label>Quantity & Unit:</label>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="number" id="qrQty" value="1" min="1" oninput="updateQRLabelPreview()">
+                            <input type="text" id="qrUnit" placeholder="Pack" oninput="updateQRLabelPreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="printable-label-card" id="printableLabelCard">
+                    <div class="printable-label-qr">
+                        <img id="qrLabelImg" src="" alt="QR Code">
+                    </div>
+                    <div class="printable-label-info">
+                        <div><b>Item Code:</b> <span id="lblCode">-</span></div>
+                        <div><b>Description:</b> <span id="lblDesc">-</span></div>
+                        <div><b>Lot Serial:</b> <span id="lblLot">-</span></div>
+                        <div><b>Pallet No.:</b> <span id="lblPallet">-</span></div>
+                        <div><b>Qty / Unit:</b> <span id="lblQtyUnit">-</span></div>
+                        <div><b>Reference:</b> <span id="lblRef">-</span></div>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-print-label" onclick="window.print()">🖨️ สั่งปริ้นป้าย QR Code พร้อมข้อมูลติดสินค้า</button>
             </div>
 
             <div id="itemFieldsGroup">
                 <div class="form-group">
                     <label id="itemCodeLabel">รหัสสินค้า (Item Code):</label>
 
-                    <!-- ปุ่มสแกนสินค้าออกสำหรับ Outbound -->
                     <div id="outboundScannerInputGroup" style="display: none; margin-bottom: 8px;">
                         <button type="button" class="btn-outbound-scan" id="btnScanOutbound" onclick="startOutboundScanner()">📷 สแกนบาร์โค้ด / QR สินค้าออก</button>
                         <div id="outboundReader"></div>
@@ -275,24 +349,18 @@
                 const name = String(item.product_name || "").trim() || "-";
                 const unit = String(item.unit || "").trim() || "";
 
-                if (st === "inbound") {
-                    totalInbound += qty;
-                } else if (st === "outbound") {
-                    totalOutbound += qty;
-                }
+                if (st === "inbound") totalInbound += qty;
+                else if (st === "outbound") totalOutbound += qty;
 
                 const key = `${code}__${unit}`;
-                if (!byItem[key]) {
-                    byItem[key] = { code, name, unit, inbound: 0, outbound: 0 };
-                }
+                if (!byItem[key]) byItem[key] = { code, name, unit, inbound: 0, outbound: 0 };
                 if (st === "inbound") byItem[key].inbound += qty;
                 if (st === "outbound") byItem[key].outbound += qty;
             });
 
             const netBalance = totalInbound - totalOutbound;
-
-            let breakdownHtml = "";
             const keys = Object.keys(byItem);
+            let breakdownHtml = "";
             if (keys.length > 0) {
                 const lis = keys.map(k => {
                     const b = byItem[k];
@@ -321,6 +389,50 @@
             `;
         }
 
+        function fetchMasterForQR() {
+            const code = document.getElementById("qrItemCode").value.trim();
+            if (!code) {
+                updateQRLabelPreview();
+                return;
+            }
+            fetch(`/get_product_info?code=${encodeURIComponent(code)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("qrDescription").value = data.description || data.product_name || "";
+                        document.getElementById("qrUnit").value = data.unit || "";
+                        if (data.lot_serial) document.getElementById("qrLotSerial").value = data.lot_serial;
+                        if (data.pallet_no) document.getElementById("qrPalletNo").value = data.pallet_no;
+                    }
+                    updateQRLabelPreview();
+                })
+                .catch(() => updateQRLabelPreview());
+        }
+
+        function updateQRLabelPreview() {
+            const code = document.getElementById("qrItemCode").value.trim() || "-";
+            const desc = document.getElementById("qrDescription").value.trim() || "-";
+            const lot = document.getElementById("qrLotSerial").value.trim() || "-";
+            const pallet = document.getElementById("qrPalletNo").value.trim() || "-";
+            const qty = document.getElementById("qrQty").value.trim() || "1";
+            const unit = document.getElementById("qrUnit").value.trim() || "";
+            const refText = code !== "-" ? `${code}#${desc}#${qty}#${unit}#${lot}#${pallet}` : "-";
+
+            document.getElementById("lblCode").innerText = code;
+            document.getElementById("lblDesc").innerText = desc;
+            document.getElementById("lblLot").innerText = lot;
+            document.getElementById("lblPallet").innerText = pallet;
+            document.getElementById("lblQtyUnit").innerText = `${qty} ${unit}`.trim();
+            document.getElementById("lblRef").innerText = refText;
+
+            const imgEl = document.getElementById("qrLabelImg");
+            if (refText !== "-") {
+                imgEl.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(refText);
+            } else {
+                imgEl.src = "";
+            }
+        }
+
         function setInboundFormLocked(locked) {
             isLocationLockedByStock = locked;
             const fieldIds = ["itemCodeInput", "productNameInput", "lotSerialInput", "quantityInput", "unitInput"];
@@ -332,12 +444,6 @@
             const btnSubmit = document.getElementById("btnSubmitForm");
             if (btnScanItem) btnScanItem.disabled = locked;
             if (btnSubmit) btnSubmit.disabled = locked;
-
-            if (locked && itemScannerInstance) {
-                itemScannerInstance.stop().then(() => {
-                    document.getElementById("itemReader").style.display = "none";
-                }).catch(() => {});
-            }
         }
 
         function resetInboundLocation() {
@@ -392,53 +498,37 @@
             }
             const readerDiv = document.getElementById("itemReader");
             readerDiv.style.display = "block";
-
-            if (!itemScannerInstance) {
-                itemScannerInstance = new Html5Qrcode("itemReader");
-            }
-
+            if (!itemScannerInstance) itemScannerInstance = new Html5Qrcode("itemReader");
             itemScannerInstance.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: 250 },
                 (decodedText) => {
                     processScannedData(decodedText);
-                    itemScannerInstance.stop().then(() => {
-                        readerDiv.style.display = "none";
-                    }).catch(err => console.log(err));
+                    itemScannerInstance.stop().then(() => { readerDiv.style.display = "none"; }).catch(() => {});
                 },
                 () => {}
-            ).catch(err => {
-                alert("ไม่สามารถเปิดกล้องได้: " + err);
-            });
+            ).catch(err => alert("ไม่สามารถเปิดกล้องได้: " + err));
         }
 
         let outboundScannerInstance = null;
         function startOutboundScanner() {
             const readerDiv = document.getElementById("outboundReader");
             readerDiv.style.display = "block";
-
-            if (!outboundScannerInstance) {
-                outboundScannerInstance = new Html5Qrcode("outboundReader");
-            }
-
+            if (!outboundScannerInstance) outboundScannerInstance = new Html5Qrcode("outboundReader");
             outboundScannerInstance.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: 250 },
                 (decodedText) => {
                     let code = decodedText.trim();
-                    if (code.includes('#')) {
-                        code = code.split('#')[0].trim();
-                    }
+                    if (code.includes('#')) code = code.split('#')[0].trim();
                     document.getElementById("itemCodeInput").value = code;
                     outboundScannerInstance.stop().then(() => {
                         readerDiv.style.display = "none";
                         searchOutboundLocation();
-                    }).catch(err => console.log(err));
+                    }).catch(() => {});
                 },
                 () => {}
-            ).catch(err => {
-                alert("ไม่สามารถเปิดกล้องได้: " + err);
-            });
+            ).catch(err => alert("ไม่สามารถเปิดกล้องได้: " + err));
         }
 
         function processScannedData(rawText) {
@@ -456,9 +546,7 @@
         }
 
         function fetchProductInfo() {
-            const statusVal = document.getElementById("statusSelect").value;
-            if (statusVal === "Outbound") return;
-
+            if (document.getElementById("statusSelect").value === "Outbound") return;
             const code = document.getElementById("itemCodeInput").value.trim();
             if (code.length < 2) return;
 
@@ -468,9 +556,7 @@
                     if (data.success) {
                         document.getElementById("productNameInput").value = data.product_name;
                         document.getElementById("unitInput").value = data.unit;
-                        if (data.lot_serial) {
-                            document.getElementById("lotSerialInput").value = data.lot_serial;
-                        }
+                        if (data.lot_serial) document.getElementById("lotSerialInput").value = data.lot_serial;
                     }
                 })
                 .catch(err => console.error("Error fetching master code:", err));
@@ -537,14 +623,9 @@
                                 btn.className = "lot-choice-btn";
                                 const balText = opt.balance > 0 ? `คงเหลือ: <b>${opt.balance} ${opt.unit}</b>` : `<span style="color:#a0aec0;">ประวัติรับเข้า</span>`;
                                 btn.innerHTML = `Lot: <b style="color:#b7791f;">${opt.lot_serial}</b> | Location: <b style="color:#22543d;">📍 ${opt.location}</b> | ${balText}`;
-                                btn.onclick = function() {
-                                    selectOutboundOption(opt, btn);
-                                };
+                                btn.onclick = function() { selectOutboundOption(opt, btn); };
                                 choicesDiv.appendChild(btn);
-
-                                if (options.length === 1 && idx === 0) {
-                                    selectOutboundOption(opt, btn);
-                                }
+                                if (options.length === 1 && idx === 0) selectOutboundOption(opt, btn);
                             });
                         } else {
                             document.getElementById("foundLocationText").innerText = "ไม่พบพิกัดจัดเก็บในระบบ";
@@ -569,6 +650,7 @@
         function handleStatusChange() {
             const statusSelect = document.getElementById("statusSelect").value;
             const searchSection = document.getElementById("searchSection");
+            const qrLabelSection = document.getElementById("qrLabelSection");
             const inboundContainer = document.getElementById("inboundLocationContainer");
             const inboundScannerGroup = document.getElementById("inboundScannerInputGroup");
             const outboundScannerGroup = document.getElementById("outboundScannerInputGroup");
@@ -580,29 +662,27 @@
             const itemFieldsGroup = document.getElementById("itemFieldsGroup");
             const btnSubmit = document.getElementById("btnSubmitForm");
 
+            searchSection.style.display = "none";
+            qrLabelSection.style.display = "none";
+            inboundContainer.style.display = "none";
+            inboundScannerGroup.style.display = "none";
+            outboundScannerGroup.style.display = "none";
+            outboundSearchContainer.style.display = "none";
+            outboundLotPicker.style.display = "none";
+            outboundSummaryBox.style.display = "none";
+            outboundBox.style.display = "none";
+            lockBox.style.display = "none";
+            setInboundFormLocked(false);
+
             if (statusSelect === "Inbound") {
-                searchSection.style.display = "none";
                 inboundContainer.style.display = "block";
                 inboundScannerGroup.style.display = "block";
-                outboundScannerGroup.style.display = "none";
-                outboundSearchContainer.style.display = "none";
-                outboundLotPicker.style.display = "none";
-                outboundSummaryBox.style.display = "none";
-                outboundBox.style.display = "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
+                if (btnSubmit) btnSubmit.style.display = "block";
                 document.getElementById("formLocationInput").value = initialInboundLocation;
-
-                if (initialInboundLocation) {
-                    checkLocationStock(initialInboundLocation);
-                } else {
-                    lockBox.style.display = "none";
-                    setInboundFormLocked(false);
-                }
+                if (initialInboundLocation) checkLocationStock(initialInboundLocation);
             } else if (statusSelect === "Outbound") {
-                searchSection.style.display = "none";
-                inboundContainer.style.display = "none";
-                inboundScannerGroup.style.display = "none";
                 outboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "flex";
                 if (document.getElementById("outboundLotChoices").children.length > 0) {
@@ -612,23 +692,18 @@
                 outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
-                lockBox.style.display = "none";
-                setInboundFormLocked(false);
-                if (btnSubmit) btnSubmit.disabled = false;
+                if (btnSubmit) { btnSubmit.style.display = "block"; btnSubmit.disabled = false; }
             } else if (statusSelect === "Cycle Count") {
                 searchSection.style.display = "block";
-                inboundContainer.style.display = "none";
-                inboundScannerGroup.style.display = "none";
-                outboundScannerGroup.style.display = "none";
-                outboundSearchContainer.style.display = "none";
-                outboundLotPicker.style.display = "none";
-                outboundSummaryBox.style.display = "none";
-                outboundBox.style.display = "none";
                 itemFieldsGroup.style.display = "none";
                 setItemFieldsRequired(false);
-                lockBox.style.display = "none";
-                setInboundFormLocked(false);
-                if (btnSubmit) btnSubmit.disabled = false;
+                if (btnSubmit) { btnSubmit.style.display = "block"; btnSubmit.disabled = false; }
+            } else if (statusSelect === "Create QR Label") {
+                qrLabelSection.style.display = "block";
+                itemFieldsGroup.style.display = "none";
+                setItemFieldsRequired(false);
+                if (btnSubmit) btnSubmit.style.display = "none";
+                updateQRLabelPreview();
             }
         }
 

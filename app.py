@@ -185,7 +185,8 @@ def get_product_info():
                     'product_name': row[1],
                     'unit': row[2],
                     'lot_serial': row[3] if len(row) > 3 else '',
-                    'description': row[5] if len(row) > 5 else ''
+                    'pallet_no': row[4] if len(row) > 4 else '',
+                    'description': row[5] if len(row) > 5 else row[1]
                 })
     except Exception as e:
         print(f"Error fetching Master_code: {e}")
