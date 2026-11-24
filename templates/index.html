@@ -79,12 +79,21 @@
 
         @media print {
             body { background: white; padding: 0; margin: 0; }
-            .container > :not(.qr-label-section),
-            .qr-label-section > :not(.printable-label-card),
-            .btn-print-label { display: none !important; }
-            .container { box-shadow: none; padding: 0; max-width: 100%; }
-            .qr-label-section { display: block !important; border: none; padding: 0; margin: 0; background: white; }
-            .printable-label-card { margin: 0; border: 2px solid #000; page-break-inside: avoid; }
+            body * { visibility: hidden; }
+            #printableLabelCard, #printableLabelCard * {
+                visibility: visible;
+            }
+            #printableLabelCard {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: auto;
+                max-width: 100%;
+                margin: 10mm;
+                border: 2px solid #000;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
         }
     </style>
 </head>
@@ -224,7 +233,7 @@
                     <div class="form-group" style="margin-bottom: 10px;">
                         <label>Item Code:</label>
                         <div style="display: flex; gap: 6px;">
-                            <input type="text" id="qrItemCode" placeholder="เช่น FG010009" onchange="fetchMasterForQR()">
+                            <input type="text" id="qrItemCode" placeholder="เช่น FG010035" onchange="fetchMasterForQR()">
                             <button type="button" onclick="fetchMasterForQR()" style="background:#3182ce;color:white;border:none;border-radius:6px;padding:0 12px;cursor:pointer;font-weight:600;">ดึง</button>
                         </div>
                     </div>
