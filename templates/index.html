@@ -1093,6 +1093,27 @@
             return true;
         }
 
+        // ดักจับการกด Enter จากเครื่องยิงบาร์โค้ดในช่อง Item Code
+        document.getElementById("itemCodeInput").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const currentStatus = document.getElementById("statusSelect").value;
+                if (currentStatus === "Outbound") {
+                    searchOutboundLocation();
+                } else if (currentStatus === "Inbound") {
+                    processScannedData(this.value);
+                }
+            }
+        });
+
+        // ดักจับการกด Enter จากเครื่องยิงบาร์โค้ดในช่อง Item Code ของหน้าสร้างป้าย QR
+        document.getElementById("qrItemCode").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                fetchMasterForQR();
+            }
+        });
+
         window.onload = function() {
             renderSearchSummary();
             const urlParams = new URLSearchParams(window.location.search);
