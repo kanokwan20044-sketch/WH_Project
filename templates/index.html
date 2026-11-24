@@ -210,19 +210,19 @@
             </div>
 
             <div class="qr-label-section" id="qrLabelSection">
-                <h3 style="margin-top: 0; color: #1a365d; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า (ดึงจาก Excel)</h3>
+                <h3 style="margin-top: 0; color: #1a365d; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า (ดึงจาก Google Sheets: Master_code)</h3>
 
                 <div class="qr-grid-2">
                     <div class="form-group" style="margin-bottom: 10px;">
                         <label>Item Code:</label>
                         <div style="display: flex; gap: 6px;">
-                            <input type="text" id="qrItemCode" placeholder="เช่น FG010035" onchange="fetchMasterForQR()">
+                            <input type="text" id="qrItemCode" placeholder="เช่น BP010001" onchange="fetchMasterForQR()">
                             <button type="button" onclick="fetchMasterForQR()" style="background:#3182ce;color:white;border:none;border-radius:6px;padding:0 12px;cursor:pointer;font-weight:600;">ดึง</button>
                         </div>
                     </div>
                     <div class="form-group" style="margin-bottom: 10px;">
                         <label>Lot Serial (YYYYMMDD):</label>
-                        <input type="text" id="qrLotSerial" placeholder="เช่น 20261123" oninput="updateQRLabelPreview()">
+                        <input type="text" id="qrLotSerial" placeholder="เช่น 20261124" oninput="updateQRLabelPreview()">
                     </div>
                 </div>
 
@@ -240,7 +240,7 @@
                         <label>Quantity & Unit:</label>
                         <div style="display: flex; gap: 6px;">
                             <input type="number" id="qrQty" value="1" min="1" oninput="updateQRLabelPreview()">
-                            <input type="text" id="qrUnit" placeholder="Pack" oninput="updateQRLabelPreview()">
+                            <input type="text" id="qrUnit" placeholder="Kg" oninput="updateQRLabelPreview()">
                         </div>
                     </div>
                 </div>
@@ -375,17 +375,15 @@
                 updateQRLabelPreview();
                 return;
             }
-            fetch(`/get_excel_product_info?code=${encodeURIComponent(code)}`)
+            fetch(`/get_product_info?code=${encodeURIComponent(code)}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        document.getElementById("qrDescription").value = data.description || "";
+                        document.getElementById("qrDescription").value = data.description || data.product_name || "";
                         document.getElementById("qrUnit").value = data.unit || "";
-                        document.getElementById("qrLotSerial").value = data.lot_serial || "";
-                        document.getElementById("qrPalletNo").value = data.pallet_no || "";
                         if (data.quantity) document.getElementById("qrQty").value = data.quantity;
                     } else {
-                        alert(data.message || "ไม่พบข้อมูลรหัสสินค้านี้ในไฟล์ Excel");
+                        alert(data.message || "ไม่พบข้อมูลรหัสสินค้านี้ในชีต Master_code");
                     }
                     updateQRLabelPreview();
                 })

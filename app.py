@@ -172,89 +172,35 @@ def check_location_stock():
 
 @app.route('/get_product_info')
 def get_product_info():
-    code = request.args.get('code', '').strip()
+    raw_code = request.args.get('code', '').strip()
+    code = raw_code.lower()
     if not code:
-        return jsonify({'success': False})
+        return jsonify({'success': False, 'message': 'ไม่ได้ระบุรหัสสินค้า'})
 
     try:
         master_sheet = get_google_sheet('Master_code')
         rows = master_sheet.get_all_values()
         for row in rows[1:]:
-            if len(row) >= 3 and row[0].strip().lower() == code.lower():
+            if not row or len(row) < 3:
+                continue
+            row_code = str(row[0]).strip().lower()
+            if row_code == code:
+                fg_name = str(row[1]).strip()
+                unit = str(row[2]).strip()
+                kg_per_unit = str(row[3]).strip() if len(row) > 3 and str(row[3]).strip() else '1'
                 return jsonify({
                     'success': True,
-                    'product_name': row[1],
-                    'unit': row[2],
-                    'lot_serial': row[3] if len(row) > 3 else '',
-                    'pallet_no': row[4] if len(row) > 4 else '',
-                    'description': row[5] if len(row) > 5 else row[1]
+                    'item_code': str(row[0]).strip(),
+                    'product_name': fg_name,
+                    'description': fg_name,
+                    'unit': unit,
+                    'quantity': kg_per_unit
                 })
     except Exception as e:
-        print(f"Error fetching Master_code: {e}")
+        print(f"Error fetching Master_code from Google Sheets: {e}")
+        return jsonify({'success': False, 'message': f'เกิดข้อผิดพลาดในการดึงข้อมูลจาก Google Sheets: {e}'})
 
-    return jsonify({'success': False})
-
-
-@app.route('/get_excel_product_info')
-def get_excel_product_info():
-    raw_code = request.args.get('code', '').strip()
-    code = raw_code.lower()
-    excel_path = 'RUN_Barcode_Template.xlsx'
-
-    if not code:
-        return jsonify({'success': False, 'message': 'ไม่ได้ระบุรหัสสินค้า'})
-
-    if not os.path.exists(excel_path):
-        return jsonify({'success': False, 'message': f'ไม่พบไฟล์ {excel_path}'})
-
-    try:
-        wb = openpyxl.load_workbook(excel_path, data_only=True)
-
-        # ค้นหาในชีต Master_code ก่อน (A=Code, B=FG Name, C=Unit)
-        if 'Master_code' in wb.sheetnames:
-            ws_master = wb['Master_code']
-            for row in ws_master.iter_rows(min_row=2, values_only=True):
-                if not row or not row[0]:
-                    continue
-                if str(row[0]).strip().lower() == code:
-                    fg_name = '' if len(row) < 2 or row[1] is None else str(row[1]).strip()
-                    unit = '' if len(row) < 3 or row[2] is None else str(row[2]).strip()
-                    return jsonify({
-                        'success': True,
-                        'item_code': str(row[0]).strip(),
-                        'quantity': '1',
-                        'unit': unit,
-                        'lot_serial': '',
-                        'pallet_no': '',
-                        'description': fg_name
-                    })
-
-        # สำรองค้นหาในชีต Data หากไม่พบใน Master_code
-        if 'Data' in wb.sheetnames:
-            ws_data = wb['Data']
-            for row in ws_data.iter_rows(min_row=2, values_only=True):
-                if not row or len(row) < 2 or not row[1]:
-                    continue
-                if str(row[1]).strip().lower() == code:
-                    qty = '' if len(row) < 3 or row[2] is None else str(row[2]).strip()
-                    unit = '' if len(row) < 4 or row[3] is None else str(row[3]).strip()
-                    lot_serial = '' if len(row) < 5 or row[4] is None else str(row[4]).strip()
-                    pallet_no = '' if len(row) < 6 or row[5] is None else str(row[5]).strip()
-                    description = '' if len(row) < 7 or row[6] is None else str(row[6]).strip()
-                    return jsonify({
-                        'success': True,
-                        'item_code': str(row[1]).strip(),
-                        'quantity': qty or '1',
-                        'unit': unit,
-                        'lot_serial': lot_serial,
-                        'pallet_no': pallet_no,
-                        'description': description
-                    })
-    except Exception as e:
-        print(f"Error reading Excel for QR label: {e}")
-        return jsonify({'success': False, 'message': str(e)})
-
-    return jsonify({'success': False, 'message': f'ไม่พบรหัส {raw_code} ในไฟล์ Excel'})
+    return jsonify({'success': False, 'message': f'ไม่พบรหัส {raw_code} ในชีต Master_code'})
 
 
 @app.route('/search_outbound')
@@ -270,9 +216,9 @@ def search_outbound():
         master_unit = ""
 
         for row in master_rows[1:]:
-            if len(row) >= 3 and row[0].strip().lower() == code.lower():
-                master_name = row[1].strip()
-                master_unit = row[2].strip()
+            if len(row) >= 3 and str(row[0]).strip().lower() == code.lower():
+                master_name = str(row[1]).strip()
+                master_unit = str(row[2]).strip()
                 break
 
         data_sheet = get_google_sheet('DATA_WH')
