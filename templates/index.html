@@ -48,6 +48,22 @@
             border-bottom: 1px solid var(--border-color);
         }
 
+        .brand-logo-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .brand-logo-img {
+            max-height: 76px;
+            width: auto;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 4px 8px;
+        }
+
         .brand-badge {
             display: inline-block;
             background: #eff6ff;
@@ -342,7 +358,9 @@
         }
         .printable-label-qr { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .printable-label-qr img, .printable-label-qr canvas { width: 220px !important; height: 220px !important; display: block; }
-        .printable-label-info { font-size: 17px; line-height: 1.65; color: #0f172a; word-break: break-word; }
+        .printable-label-info { font-size: 17px; line-height: 1.65; color: #0f172a; word-break: break-word; flex: 1; }
+        .label-logo-row { margin-bottom: 8px; }
+        .label-logo-img { max-height: 52px; width: auto; object-fit: contain; display: block; }
 
         .btn-print-label {
             width: 100%;
@@ -364,12 +382,16 @@
             .mode-tabs { grid-template-columns: repeat(2, 1fr); }
             .qr-grid-2, .summary-grid, .date-row { grid-template-columns: 1fr; flex-direction: column; }
             .printable-label-card { flex-direction: column; text-align: center; }
+            .label-logo-img { margin: 0 auto 8px auto; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="brand-header">
+            <div class="brand-logo-wrap">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="PERFECT EARTH Logo" class="brand-logo-img" onerror="this.style.display='none';">
+            </div>
             <div class="brand-badge">WAREHOUSE MANAGEMENT SYSTEM</div>
             <h2>ระบบ WMS คลังสินค้า</h2>
             <div class="subtitle">บริษัท ชาช่าไทย จำกัด เชียงราย</div>
@@ -545,6 +567,9 @@
                 <div class="printable-label-card" id="printableLabelCard">
                     <div class="printable-label-qr" id="qrCodeBox"></div>
                     <div class="printable-label-info">
+                        <div class="label-logo-row">
+                            <img src="{{ url_for('static', filename='logo.png') }}" alt="PERFECT EARTH Logo" class="label-logo-img" onerror="this.style.display='none';">
+                        </div>
                         <div><b>Item Code:</b> <span id="lblCode">-</span></div>
                         <div><b>Description:</b> <span id="lblDesc">-</span></div>
                         <div><b>Lot Serial:</b> <span id="lblLot">-</span></div>
@@ -605,6 +630,7 @@
     <script>
         const initialInboundLocation = "{{ location|e }}";
         const searchResultsData = {{ search_results|tojson|safe }};
+        const logoUrl = "{{ url_for('static', filename='logo.png', _external=True) }}";
         let isLocationLockedByStock = false;
         let isSearchingOutbound = false;
 
@@ -762,7 +788,8 @@
                         .label-sheet { border: 3px solid #000; border-radius: 8px; padding: 20px; display: flex; gap: 24px; align-items: center; max-width: 760px; }
                         #printQrBox { width: 220px; height: 220px; flex-shrink: 0; }
                         #printQrBox img, #printQrBox canvas { width: 220px !important; height: 220px !important; display: block; }
-                        .info { font-size: 18px; line-height: 1.65; word-break: break-word; }
+                        .info { font-size: 18px; line-height: 1.65; word-break: break-word; flex: 1; }
+                        .print-logo { max-height: 54px; width: auto; object-fit: contain; display: block; margin-bottom: 8px; }
                         @page { margin: 8mm; }
                     </style>
                 </head>
@@ -770,6 +797,7 @@
                     <div class="label-sheet">
                         <div id="printQrBox"></div>
                         <div class="info">
+                            <img src="${logoUrl}" alt="PERFECT EARTH Logo" class="print-logo" onerror="this.style.display='none';">
                             <div><b>Item Code:</b> ${p.code}</div>
                             <div><b>Description:</b> ${p.desc}</div>
                             <div><b>Lot Serial:</b> ${p.lot}</div>
@@ -788,7 +816,7 @@
                             });
                             setTimeout(function() {
                                 window.print();
-                            }, 250);
+                            }, 300);
                         };
                     <\/script>
                 </body>
@@ -1113,7 +1141,6 @@
             return true;
         }
 
-        // ดักจับการกด Enter จากเครื่องยิงบาร์โค้ดในช่อง Item Code
         document.getElementById("itemCodeInput").addEventListener("keypress", function(e) {
             if (e.key === "Enter") {
                 e.preventDefault();
@@ -1126,7 +1153,6 @@
             }
         });
 
-        // ดักจับการกด Enter จากเครื่องยิงบาร์โค้ดในช่อง Item Code ของหน้าสร้างป้าย QR
         document.getElementById("qrItemCode").addEventListener("keypress", function(e) {
             if (e.key === "Enter") {
                 e.preventDefault();
