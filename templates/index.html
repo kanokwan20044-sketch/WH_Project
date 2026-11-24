@@ -7,83 +7,380 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
-        .container { max-width: 780px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
-        .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
+        :root {
+            --bg-page: #eef2f6;
+            --bg-card: #ffffff;
+            --bg-soft: #f8fafc;
+            --border-color: #dbe3ec;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #1d4ed8;
+            --primary-dark: #1e40af;
+            --success: #15803d;
+            --success-dark: #166534;
+            --warning: #b45309;
+            --danger: #b91c1c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #e2e8f0 0%, var(--bg-page) 100%);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 820px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--border-color);
+        }
+
+        .brand-header {
+            text-align: center;
+            padding-bottom: 18px;
+            margin-bottom: 22px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand-badge {
+            display: inline-block;
+            background: #eff6ff;
+            color: var(--primary);
+            border: 1px solid #bfdbfe;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #0f172a;
+            margin: 4px 0;
+            font-size: 26px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 0;
+            font-size: 14px;
+        }
+
+        .mode-tabs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .mode-tab-btn {
+            border: none;
+            background: transparent;
+            color: #475569;
+            padding: 10px 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .mode-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.75);
+            color: #0f172a;
+        }
+
+        .mode-tab-btn.active {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 4px 10px rgba(29, 78, 216, 0.25);
+        }
+
         .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
-        input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #334155; }
+
+        input, select {
+            width: 100%;
+            padding: 11px 13px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 14px;
+            background-color: #fff;
+            color: var(--text-main);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+        }
+
         input:disabled, select:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
-        .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .btn-submit:hover:not(:disabled) { background-color: #276749; }
-        .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
-        .btn-scanner:hover:not(:disabled) { background-color: #2b6cb0; }
-        .btn-outbound-scan { background-color: #2b6cb0; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
-        .btn-outbound-scan:hover:not(:disabled) { background-color: #2c5282; }
-        .btn-search { background-color: #d69e2e; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 120px; }
-        .btn-search:hover:not(:disabled) { background-color: #b7791f; }
-        .btn-reset-loc { background-color: #c53030; color: white; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-top: 10px; }
-        .location-box { padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: 600; text-align: center; }
-        .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
-        .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
-        .stock-lock-box { background-color: #fff5f5; color: #9b2c2c; border: 2px solid #f56565; padding: 14px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; }
-        .stock-lock-title { font-weight: 700; color: #c53030; margin-bottom: 8px; font-size: 15px; }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
+            color: white;
+            padding: 13px;
+            border: none;
+            border-radius: 9px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 14px rgba(21, 128, 61, 0.22);
+            transition: transform 0.1s ease, filter 0.15s ease;
+        }
+        .btn-submit:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-1px); }
+
+        .btn-scanner {
+            background: linear-gradient(135deg, #2563eb 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 11px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-bottom: 10px;
+            width: 100%;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+        }
+        .btn-scanner:hover:not(:disabled) { filter: brightness(1.05); }
+
+        .btn-outbound-scan {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: white;
+            padding: 11px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .btn-outbound-scan:hover:not(:disabled) { filter: brightness(1.05); }
+
+        .btn-search {
+            background-color: var(--warning);
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            width: 120px;
+        }
+        .btn-search:hover:not(:disabled) { filter: brightness(0.95); }
+
+        .btn-reset-loc {
+            background-color: var(--danger);
+            color: white;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .location-box {
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 14px;
+        }
+        .has-location { background-color: #dcfce7; color: #14532d; border: 1px solid #86efac; }
+        .no-location { background-color: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
+
+        .stock-lock-box {
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 2px solid #f87171;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        .stock-lock-title { font-weight: 700; color: #b91c1c; margin-bottom: 8px; font-size: 15px; }
         .stock-item-list { margin: 0; padding-left: 20px; }
         .stock-item-list li { margin-bottom: 6px; }
-        .outbound-lot-picker { background-color: #ebf8ff; border: 1px solid #90cdf4; border-radius: 8px; padding: 14px; margin-bottom: 20px; display: none; }
-        .outbound-lot-title { font-weight: 700; color: #2b6cb0; font-size: 14px; margin-bottom: 10px; }
-        .lot-choice-btn { display: block; width: 100%; text-align: left; background: #ffffff; border: 1px solid #cbd5e0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; font-size: 13px; color: #2d3748; transition: all 0.15s ease; }
+
+        .outbound-lot-picker {
+            background-color: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .outbound-lot-title { font-weight: 700; color: #0369a1; font-size: 14px; margin-bottom: 10px; }
+
+        .lot-choice-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 11px 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #1e293b;
+            transition: all 0.15s ease;
+        }
         .lot-choice-btn:last-child { margin-bottom: 0; }
-        .lot-choice-btn:hover { background: #e6fffa; border-color: #319795; }
-        .lot-choice-btn.selected { background: #c6f6d5; border-color: #2f855a; color: #22543d; font-weight: 600; }
-        .outbound-summary-box { background-color: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; font-size: 13px; color: #22543d; display: none; }
-        .outbound-location-result { background-color: #ebf8ff; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #90cdf4; color: #2b6cb0; display: none; }
-        .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
-        .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
+        .lot-choice-btn:hover { background: #f0fdfa; border-color: #14b8a6; }
+        .lot-choice-btn.selected { background: #dcfce7; border-color: #16a34a; color: #14532d; font-weight: 700; }
+
+        .outbound-summary-box {
+            background-color: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #14532d;
+            display: none;
+        }
+
+        .outbound-location-result {
+            background-color: #eff6ff;
+            padding: 13px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+            display: none;
+        }
+
+        .alert-success {
+            background-color: #dcfce7;
+            color: #14532d;
+            padding: 13px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 700;
+            border: 1px solid #86efac;
+        }
+
+        .search-section {
+            background: var(--bg-soft);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+            display: none;
+        }
+
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
         #reader, #itemReader, #outboundReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
 
-        .table-responsive { width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 6px; border: 1px solid #cbd5e0; }
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 8px; border: 1px solid #cbd5e1; }
         .cycle-table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; white-space: nowrap; }
-        .cycle-table th { background-color: #2b6cb0; color: white; padding: 9px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #2c5282; }
-        .cycle-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #2d3748; }
-        .cycle-table tr:nth-child(even) { background-color: #f7fafc; }
-        .tag-status-inbound { background-color: #c6f6d5; color: #22543d; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
-        .tag-status-outbound { background-color: #fed7d7; color: #742a2a; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
-        .tag-status-cycle { background-color: #e2e8f0; color: #4a5568; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
-        .tag-location { background-color: #feebc8; color: #7b341e; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; }
+        .cycle-table th { background-color: #1e3a8a; color: white; padding: 10px 11px; text-align: left; font-weight: 600; }
+        .cycle-table td { padding: 9px 11px; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+        .cycle-table tr:nth-child(even) { background-color: #f8fafc; }
+
+        .tag-status-inbound { background-color: #dcfce7; color: #14532d; padding: 3px 8px; border-radius: 999px; font-weight: 700; display: inline-block; }
+        .tag-status-outbound { background-color: #fee2e2; color: #7f1d1d; padding: 3px 8px; border-radius: 999px; font-weight: 700; display: inline-block; }
+        .tag-status-cycle { background-color: #e2e8f0; color: #334155; padding: 3px 8px; border-radius: 999px; font-weight: 700; display: inline-block; }
+        .tag-location { background-color: #ffedd5; color: #7c2d12; padding: 3px 8px; border-radius: 999px; font-weight: 700; display: inline-block; }
 
         .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-        .summary-card { padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e0; background: #f8fafc; }
-        .summary-label { font-size: 12px; color: #4a5568; margin-bottom: 4px; }
-        .summary-value { font-size: 16px; font-weight: 700; }
-        .summary-in { background: #f0fff4; border-color: #9ae6b4; color: #22543d; }
-        .summary-out { background: #fff5f5; border-color: #feb2b2; color: #742a2a; }
-        .summary-net { background: #ebf8ff; border-color: #90cdf4; color: #2b6cb0; }
-        .item-breakdown-box { margin-top: 10px; padding: 10px 12px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; }
+        .summary-card { padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; background: #f8fafc; }
+        .summary-label { font-size: 12px; color: #475569; margin-bottom: 4px; }
+        .summary-value { font-size: 17px; font-weight: 800; }
+        .summary-in { background: #f0fdf4; border-color: #86efac; color: #14532d; }
+        .summary-out { background: #fef2f2; border-color: #fca5a5; color: #7f1d1d; }
+        .summary-net { background: #eff6ff; border-color: #93c5fd; color: #1e40af; }
+
+        .item-breakdown-box { margin-top: 10px; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; }
         .item-breakdown-box ul { margin: 6px 0 0 0; padding-left: 18px; }
         .item-breakdown-box li { margin-bottom: 4px; }
 
-        .qr-label-section { background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 10px; padding: 20px; display: none; margin-bottom: 20px; }
+        .qr-label-section {
+            background: var(--bg-soft);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 22px;
+            display: none;
+            margin-bottom: 20px;
+        }
         .qr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .printable-label-card { border: 3px solid #1a202c; border-radius: 10px; background: #ffffff; padding: 20px; display: flex; gap: 22px; align-items: center; margin-top: 16px; }
-        .printable-label-qr { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .printable-label-qr img, .printable-label-qr canvas { width: 200px !important; height: 200px !important; display: block; }
-        .printable-label-info { font-size: 17px; line-height: 1.65; color: #1a202c; word-break: break-word; }
-        .btn-print-label { width: 100%; background-color: #2b6cb0; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
-        .btn-print-label:hover { background-color: #2c5282; }
 
-        @media (max-width: 640px) {
-            .qr-grid-2, .summary-grid { grid-template-columns: 1fr; }
+        .printable-label-card {
+            border: 3px solid #0f172a;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 22px;
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            margin-top: 18px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+        }
+        .printable-label-qr { width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .printable-label-qr img, .printable-label-qr canvas { width: 220px !important; height: 220px !important; display: block; }
+        .printable-label-info { font-size: 17px; line-height: 1.65; color: #0f172a; word-break: break-word; }
+
+        .btn-print-label {
+            width: 100%;
+            background: linear-gradient(135deg, #2563eb 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 13px;
+            border: none;
+            border-radius: 9px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 14px;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.2);
+        }
+        .btn-print-label:hover { filter: brightness(1.05); }
+
+        @media (max-width: 680px) {
+            .container { padding: 20px; }
+            .mode-tabs { grid-template-columns: repeat(2, 1fr); }
+            .qr-grid-2, .summary-grid, .date-row { grid-template-columns: 1fr; flex-direction: column; }
             .printable-label-card { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>ระบบ WMS คลังสินค้า</h2>
-        <div class="subtitle">บริษัท ชาช่าไทย จำกัด เชียงราย</div>
+        <div class="brand-header">
+            <div class="brand-badge">WAREHOUSE MANAGEMENT SYSTEM</div>
+            <h2>ระบบ WMS คลังสินค้า</h2>
+            <div class="subtitle">บริษัท ชาช่าไทย จำกัด เชียงราย</div>
+        </div>
+
+        <div class="mode-tabs" id="modeTabs">
+            <button type="button" class="mode-tab-btn active" data-mode="Inbound" onclick="selectModeTab('Inbound')">📥 Inbound</button>
+            <button type="button" class="mode-tab-btn" data-mode="Outbound" onclick="selectModeTab('Outbound')">📤 Outbound</button>
+            <button type="button" class="mode-tab-btn" data-mode="Cycle Count" onclick="selectModeTab('Cycle Count')">📋 Cycle Count</button>
+            <button type="button" class="mode-tab-btn" data-mode="Create QR Label" onclick="selectModeTab('Create QR Label')">🏷️ QR Label</button>
+        </div>
 
         {% if success %}
             <div class="alert-success">
@@ -92,11 +389,11 @@
         {% endif %}
 
         <div class="search-section" id="searchSection">
-            <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
+            <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
                 <div class="form-group" style="margin-bottom: 10px;">
                     <label style="font-size: 13px;">คำค้นหา (Item Code, ชื่อสินค้า, Lot หรือ Location):</label>
-                    <input type="text" name="q" placeholder="เช่น FG010004, LOT หรือ W01E0111" value="{{ search_query }}">
+                    <input type="text" name="q" placeholder="เช่น BP010001, LOT หรือ W01E0111" value="{{ search_query }}">
                 </div>
                 <div class="date-row">
                     <div style="flex: 1;">
@@ -108,11 +405,11 @@
                         <input type="date" name="end_date" value="{{ end_date }}">
                     </div>
                 </div>
-                <button type="submit" style="width: 100%; background-color: #3182ce; color: white; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 5px;">ค้นหาประวัติ</button>
+                <button type="submit" style="width: 100%; background-color: #2563eb; color: white; padding: 11px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; margin-top: 6px;">ค้นหาประวัติ</button>
             </form>
 
             {% if search_query or start_date or end_date %}
-                <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e0;">
+                <div style="margin-top: 16px; background: white; padding: 14px; border-radius: 10px; border: 1px solid #cbd5e1;">
                     <strong style="font-size: 13px;">ผลการค้นหา (พบ {{ search_results|length }} รายการ):</strong>
                     {% if search_results %}
                         <div class="table-responsive">
@@ -132,7 +429,7 @@
                                 <tbody>
                                     {% for item in search_results %}
                                         <tr>
-                                            <td style="color: #718096;">{{ item.timestamp }}</td>
+                                            <td style="color: #64748b;">{{ item.timestamp }}</td>
                                             <td>
                                                 {% if item.status == 'Inbound' %}
                                                     <span class="tag-status-inbound">Inbound</span>
@@ -145,9 +442,9 @@
                                             <td><span class="tag-location">📍 {{ item.location }}</span></td>
                                             <td><b>{{ item.item_code }}</b></td>
                                             <td>{{ item.product_name }}</td>
-                                            <td style="color: #b7791f; font-weight: bold;">{{ item.lot_serial }}</td>
-                                            <td style="text-align: right; font-weight: bold; color: #2b6cb0;">{{ item.quantity }}</td>
-                                            <td style="color: #4a5568;">{{ item.unit }}</td>
+                                            <td style="color: #b45309; font-weight: bold;">{{ item.lot_serial }}</td>
+                                            <td style="text-align: right; font-weight: bold; color: #1d4ed8;">{{ item.quantity }}</td>
+                                            <td style="color: #475569;">{{ item.unit }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -155,7 +452,7 @@
                         </div>
                         <div id="searchSummaryContainer"></div>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0; font-size: 13px;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
+                        <p style="color: #dc2626; margin-top: 8px; margin-bottom: 0; font-size: 13px;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
                     {% endif %}
                 </div>
             {% endif %}
@@ -188,12 +485,12 @@
             <div><b>📋 ข้อมูลสินค้าที่เลือกเบิกจ่าย:</b></div>
             <div style="margin-top: 4px;">
                 รหัสสินค้า: <b id="sumItemCode">-</b> | ชื่อสินค้า: <b id="sumProductName">-</b><br>
-                Lot: <b id="sumLotSerial" style="color: #b7791f;">-</b> | Location: <b id="sumLocation">-</b> | หน่วย: <b id="sumUnit">-</b>
+                Lot: <b id="sumLotSerial" style="color: #b45309;">-</b> | Location: <b id="sumLocation">-</b> | หน่วย: <b id="sumUnit">-</b>
             </div>
         </div>
 
         <div class="outbound-location-result" id="outboundLocationBox">
-            📍 พิกัดจัดเก็บสินค้า (Location): <b id="foundLocationText" style="color: #22543d; font-size: 16px;">-</b>
+            📍 พิกัดจัดเก็บสินค้า (Location): <b id="foundLocationText" style="color: #15803d; font-size: 16px;">-</b>
         </div>
 
         <form action="/submit" method="POST" id="wmsForm" onsubmit="return handleFormSubmit()">
@@ -210,14 +507,14 @@
             </div>
 
             <div class="qr-label-section" id="qrLabelSection">
-                <h3 style="margin-top: 0; color: #1a365d; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า (ดึงจาก Google Sheets: Master_code)</h3>
+                <h3 style="margin-top: 0; color: #0f172a; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า (ดึงจาก Google Sheets: Master_code)</h3>
 
                 <div class="qr-grid-2">
                     <div class="form-group" style="margin-bottom: 10px;">
                         <label>Item Code:</label>
                         <div style="display: flex; gap: 6px;">
                             <input type="text" id="qrItemCode" placeholder="เช่น BP010001" onchange="fetchMasterForQR()">
-                            <button type="button" onclick="fetchMasterForQR()" style="background:#3182ce;color:white;border:none;border-radius:6px;padding:0 12px;cursor:pointer;font-weight:600;">ดึง</button>
+                            <button type="button" onclick="fetchMasterForQR()" style="background:#2563eb;color:white;border:none;border-radius:8px;padding:0 14px;cursor:pointer;font-weight:700;">ดึง</button>
                         </div>
                     </div>
                     <div class="form-group" style="margin-bottom: 10px;">
@@ -237,9 +534,9 @@
                         <input type="text" id="qrPalletNo" placeholder="เลขพาเลท..." oninput="updateQRLabelPreview()">
                     </div>
                     <div class="form-group" style="margin-bottom: 10px;">
-                        <label>Quantity & Unit:</label>
+                        <label>Quantity & Unit (กรอกจำนวนเอง):</label>
                         <div style="display: flex; gap: 6px;">
-                            <input type="number" id="qrQty" value="1" min="1" oninput="updateQRLabelPreview()">
+                            <input type="number" id="qrQty" placeholder="กรอกจำนวน..." min="1" oninput="updateQRLabelPreview()">
                             <input type="text" id="qrUnit" placeholder="Kg" oninput="updateQRLabelPreview()">
                         </div>
                     </div>
@@ -275,7 +572,7 @@
                     </div>
 
                     <div id="inboundScannerInputGroup" style="display: none; margin-top: 8px;">
-                        <button type="button" class="btn-scanner" id="btnScanItem" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
+                        <button type="button" class="btn-scanner" id="btnScanItem" style="background-color: #1d4ed8; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
                         <div id="itemReader"></div>
                     </div>
                 </div>
@@ -309,6 +606,20 @@
         const initialInboundLocation = "{{ location|e }}";
         const searchResultsData = {{ search_results|tojson|safe }};
         let isLocationLockedByStock = false;
+
+        function selectModeTab(mode) {
+            const selectEl = document.getElementById("statusSelect");
+            if (selectEl) {
+                selectEl.value = mode;
+                handleStatusChange();
+            }
+        }
+
+        function syncModeTabs(activeMode) {
+            document.querySelectorAll(".mode-tab-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.getAttribute("data-mode") === activeMode);
+            });
+        }
 
         function fmtNum(n) {
             return Number.isInteger(n) ? n.toLocaleString() : Number(n.toFixed(2)).toLocaleString();
@@ -381,7 +692,10 @@
                     if (data.success) {
                         document.getElementById("qrDescription").value = data.description || data.product_name || "";
                         document.getElementById("qrUnit").value = data.unit || "";
-                        if (data.quantity) document.getElementById("qrQty").value = data.quantity;
+                        const qtyInput = document.getElementById("qrQty");
+                        qtyInput.value = "";
+                        qtyInput.placeholder = "กรอกจำนวน...";
+                        qtyInput.focus();
                     } else {
                         alert(data.message || "ไม่พบข้อมูลรหัสสินค้านี้ในชีต Master_code");
                     }
@@ -395,7 +709,7 @@
             const desc = document.getElementById("qrDescription").value.trim() || "-";
             const lot = document.getElementById("qrLotSerial").value.trim() || "-";
             const pallet = document.getElementById("qrPalletNo").value.trim() || "-";
-            const qty = document.getElementById("qrQty").value.trim() || "1";
+            const qty = document.getElementById("qrQty").value.trim() || "-";
             const unit = document.getElementById("qrUnit").value.trim() || "";
             const refText = code !== "-" ? `${code}#${desc}#${qty}#${unit}#${lot}#${pallet}` : "-";
             return { code, desc, lot, pallet, qty, unit, refText };
@@ -418,7 +732,7 @@
             document.getElementById("lblDesc").innerText = p.desc;
             document.getElementById("lblLot").innerText = p.lot;
             document.getElementById("lblPallet").innerText = p.pallet;
-            document.getElementById("lblQtyUnit").innerText = `${p.qty} ${p.unit}`.trim();
+            document.getElementById("lblQtyUnit").innerText = p.qty !== "-" ? `${p.qty} ${p.unit}`.trim() : "-";
             document.getElementById("lblRef").innerText = p.refText;
 
             const boxEl = document.getElementById("qrCodeBox");
@@ -459,7 +773,7 @@
                             <div><b>Description:</b> ${p.desc}</div>
                             <div><b>Lot Serial:</b> ${p.lot}</div>
                             <div><b>Pallet No.:</b> ${p.pallet}</div>
-                            <div><b>Qty / Unit:</b> ${p.qty} ${p.unit}</div>
+                            <div><b>Qty / Unit:</b> ${p.qty !== "-" ? `${p.qty} ${p.unit}`.trim() : "-"}</div>
                             <div><b>Reference:</b> ${p.refText}</div>
                         </div>
                     </div>
@@ -671,8 +985,8 @@
                                 const btn = document.createElement("button");
                                 btn.type = "button";
                                 btn.className = "lot-choice-btn";
-                                const balText = opt.balance > 0 ? `คงเหลือ: <b>${opt.balance} ${opt.unit}</b>` : `<span style="color:#a0aec0;">ประวัติรับเข้า</span>`;
-                                btn.innerHTML = `Lot: <b style="color:#b7791f;">${opt.lot_serial}</b> | Location: <b style="color:#22543d;">📍 ${opt.location}</b> | ${balText}`;
+                                const balText = opt.balance > 0 ? `คงเหลือ: <b>${opt.balance} ${opt.unit}</b>` : `<span style="color:#94a3b8;">ประวัติรับเข้า</span>`;
+                                btn.innerHTML = `Lot: <b style="color:#b45309;">${opt.lot_serial}</b> | Location: <b style="color:#15803d;">📍 ${opt.location}</b> | ${balText}`;
                                 btn.onclick = function() { selectOutboundOption(opt, btn); };
                                 choicesDiv.appendChild(btn);
                                 if (options.length === 1 && idx === 0) selectOutboundOption(opt, btn);
@@ -699,6 +1013,8 @@
 
         function handleStatusChange() {
             const statusSelect = document.getElementById("statusSelect").value;
+            syncModeTabs(statusSelect);
+
             const searchSection = document.getElementById("searchSection");
             const qrLabelSection = document.getElementById("qrLabelSection");
             const inboundContainer = document.getElementById("inboundLocationContainer");
