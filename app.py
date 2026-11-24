@@ -197,9 +197,9 @@ def get_product_info():
 
 @app.route('/get_excel_product_info')
 def get_excel_product_info():
-    code = request.args.get('code', '').strip().lower()
+    raw_code = request.args.get('code', '').strip()
+    code = raw_code.lower()
     excel_path = 'RUN_Barcode_Template.xlsx'
-    sheet_name = 'Data'
 
     if not code:
         return jsonify({'success': False, 'message': 'ไม่ได้ระบุรหัสสินค้า'})
@@ -209,32 +209,52 @@ def get_excel_product_info():
 
     try:
         wb = openpyxl.load_workbook(excel_path, data_only=True)
-        ws = wb[sheet_name] if sheet_name in wb.sheetnames else wb.active
 
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if not row or len(row) < 2 or not row[1]:
-                continue
-            row_code = str(row[1]).strip().lower()
-            if row_code == code:
-                qty = '' if row[2] is None else str(row[2]).strip()
-                unit = '' if len(row) < 4 or row[3] is None else str(row[3]).strip()
-                lot_serial = '' if len(row) < 5 or row[4] is None else str(row[4]).strip()
-                pallet_no = '' if len(row) < 6 or row[5] is None else str(row[5]).strip()
-                description = '' if len(row) < 7 or row[6] is None else str(row[6]).strip()
-                return jsonify({
-                    'success': True,
-                    'item_code': str(row[1]).strip(),
-                    'quantity': qty or '1',
-                    'unit': unit,
-                    'lot_serial': lot_serial,
-                    'pallet_no': pallet_no,
-                    'description': description
-                })
+        # ค้นหาในชีต Master_code ก่อน (A=Code, B=FG Name, C=Unit)
+        if 'Master_code' in wb.sheetnames:
+            ws_master = wb['Master_code']
+            for row in ws_master.iter_rows(min_row=2, values_only=True):
+                if not row or not row[0]:
+                    continue
+                if str(row[0]).strip().lower() == code:
+                    fg_name = '' if len(row) < 2 or row[1] is None else str(row[1]).strip()
+                    unit = '' if len(row) < 3 or row[2] is None else str(row[2]).strip()
+                    return jsonify({
+                        'success': True,
+                        'item_code': str(row[0]).strip(),
+                        'quantity': '1',
+                        'unit': unit,
+                        'lot_serial': '',
+                        'pallet_no': '',
+                        'description': fg_name
+                    })
+
+        # สำรองค้นหาในชีต Data หากไม่พบใน Master_code
+        if 'Data' in wb.sheetnames:
+            ws_data = wb['Data']
+            for row in ws_data.iter_rows(min_row=2, values_only=True):
+                if not row or len(row) < 2 or not row[1]:
+                    continue
+                if str(row[1]).strip().lower() == code:
+                    qty = '' if len(row) < 3 or row[2] is None else str(row[2]).strip()
+                    unit = '' if len(row) < 4 or row[3] is None else str(row[3]).strip()
+                    lot_serial = '' if len(row) < 5 or row[4] is None else str(row[4]).strip()
+                    pallet_no = '' if len(row) < 6 or row[5] is None else str(row[5]).strip()
+                    description = '' if len(row) < 7 or row[6] is None else str(row[6]).strip()
+                    return jsonify({
+                        'success': True,
+                        'item_code': str(row[1]).strip(),
+                        'quantity': qty or '1',
+                        'unit': unit,
+                        'lot_serial': lot_serial,
+                        'pallet_no': pallet_no,
+                        'description': description
+                    })
     except Exception as e:
         print(f"Error reading Excel for QR label: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
-    return jsonify({'success': False, 'message': f'ไม่พบรหัส {code} ในไฟล์ Excel'})
+    return jsonify({'success': False, 'message': f'ไม่พบรหัส {raw_code} ในไฟล์ Excel'})
 
 
 @app.route('/search_outbound')
