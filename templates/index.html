@@ -7,7 +7,7 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
-        .container { max-width: 680px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .container { max-width: 780px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
         .form-group { margin-bottom: 20px; }
@@ -44,6 +44,29 @@
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
         #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
         #outboundReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
+
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 6px; border: 1px solid #cbd5e0; }
+        .cycle-table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; white-space: nowrap; }
+        .cycle-table th { background-color: #2b6cb0; color: white; padding: 9px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #2c5282; }
+        .cycle-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #2d3748; }
+        .cycle-table tr:nth-child(even) { background-color: #f7fafc; }
+        .cycle-table tr:hover { background-color: #edf2f7; }
+        .tag-status-inbound { background-color: #c6f6d5; color: #22543d; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
+        .tag-status-outbound { background-color: #fed7d7; color: #742a2a; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
+        .tag-status-cycle { background-color: #e2e8f0; color: #4a5568; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
+        .tag-location { background-color: #feebc8; color: #7b341e; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; }
+
+        /* กล่องยอดสรุปผลการค้นหา Cycle Count */
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+        .summary-card { padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e0; background: #f8fafc; }
+        .summary-label { font-size: 12px; color: #4a5568; margin-bottom: 4px; }
+        .summary-value { font-size: 16px; font-weight: 700; }
+        .summary-in { background: #f0fff4; border-color: #9ae6b4; color: #22543d; }
+        .summary-out { background: #fff5f5; border-color: #feb2b2; color: #742a2a; }
+        .summary-net { background: #ebf8ff; border-color: #90cdf4; color: #2b6cb0; }
+        .item-breakdown-box { margin-top: 10px; padding: 10px 12px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; }
+        .item-breakdown-box ul { margin: 6px 0 0 0; padding-left: 18px; }
+        .item-breakdown-box li { margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -80,22 +103,51 @@
 
             {% if search_query or start_date or end_date %}
                 <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e0;">
-                    <strong>ผลการค้นหา:</strong>
+                    <strong style="font-size: 13px;">ผลการค้นหา (พบ {{ search_results|length }} รายการ):</strong>
                     {% if search_results %}
-                        <ul style="padding-left: 20px; margin-top: 8px; margin-bottom: 0; font-size: 13px;">
-                            {% for item in search_results %}
-                                <li style="margin-bottom: 8px;">
-                                    <b>{{ item.timestamp }}</b> |
-                                    สถานะ: <b>{{ item.status }}</b> |
-                                    รหัส: <b>{{ item.item_code }}</b> ({{ item.product_name }}) |
-                                    Lot: <span style="color: #d69e2e; font-weight: bold;">{{ item.lot_serial }}</span> |
-                                    Location: <span style="background: #c6f6d5; padding: 2px 6px; border-radius: 4px; color: #22543d; font-weight: bold;">📍 {{ item.location }}</span> |
-                                    จำนวน: {{ item.quantity }} {{ item.unit }}
-                                </li>
-                            {% endfor %}
-                        </ul>
+                        <div class="table-responsive">
+                            <table class="cycle-table">
+                                <thead>
+                                    <tr>
+                                        <th>วัน-เวลา</th>
+                                        <th>สถานะ</th>
+                                        <th>พิกัด (Location)</th>
+                                        <th>รหัสสินค้า</th>
+                                        <th>ชื่อสินค้า</th>
+                                        <th>ล็อตสินค้า (Lot)</th>
+                                        <th style="text-align: right;">จำนวน</th>
+                                        <th>หน่วย</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in search_results %}
+                                        <tr>
+                                            <td style="color: #718096;">{{ item.timestamp }}</td>
+                                            <td>
+                                                {% if item.status == 'Inbound' %}
+                                                    <span class="tag-status-inbound">Inbound</span>
+                                                {% elif item.status == 'Outbound' %}
+                                                    <span class="tag-status-outbound">Outbound</span>
+                                                {% else %}
+                                                    <span class="tag-status-cycle">{{ item.status }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="tag-location">📍 {{ item.location }}</span></td>
+                                            <td><b>{{ item.item_code }}</b></td>
+                                            <td>{{ item.product_name }}</td>
+                                            <td style="color: #b7791f; font-weight: bold;">{{ item.lot_serial }}</td>
+                                            <td style="text-align: right; font-weight: bold; color: #2b6cb0;">{{ item.quantity }}</td>
+                                            <td style="color: #4a5568;">{{ item.unit }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- ยอดสรุปจากผลการค้นหา -->
+                        <div id="searchSummaryContainer"></div>
                     {% else %}
-                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
+                        <p style="color: #e53e3e; margin-top: 8px; margin-bottom: 0; font-size: 13px;">❌ ไม่พบข้อมูลตามเงื่อนไขดังกล่าว</p>
                     {% endif %}
                 </div>
             {% endif %}
@@ -201,7 +253,73 @@
 
     <script>
         const initialInboundLocation = "{{ location|e }}";
+        const searchResultsData = {{ search_results|tojson|safe }};
         let isLocationLockedByStock = false;
+
+        function fmtNum(n) {
+            return Number.isInteger(n) ? n.toLocaleString() : Number(n.toFixed(2)).toLocaleString();
+        }
+
+        function renderSearchSummary() {
+            const container = document.getElementById("searchSummaryContainer");
+            if (!container || !Array.isArray(searchResultsData) || searchResultsData.length === 0) return;
+
+            let totalInbound = 0;
+            let totalOutbound = 0;
+            const byItem = {};
+
+            searchResultsData.forEach(item => {
+                const qty = parseFloat(String(item.quantity || "0").replace(/,/g, "")) || 0;
+                const st = String(item.status || "").trim().toLowerCase();
+                const code = String(item.item_code || "").trim() || "-";
+                const name = String(item.product_name || "").trim() || "-";
+                const unit = String(item.unit || "").trim() || "";
+
+                if (st === "inbound") {
+                    totalInbound += qty;
+                } else if (st === "outbound") {
+                    totalOutbound += qty;
+                }
+
+                const key = `${code}__${unit}`;
+                if (!byItem[key]) {
+                    byItem[key] = { code, name, unit, inbound: 0, outbound: 0 };
+                }
+                if (st === "inbound") byItem[key].inbound += qty;
+                if (st === "outbound") byItem[key].outbound += qty;
+            });
+
+            const netBalance = totalInbound - totalOutbound;
+
+            let breakdownHtml = "";
+            const keys = Object.keys(byItem);
+            if (keys.length > 0) {
+                const lis = keys.map(k => {
+                    const b = byItem[k];
+                    const net = b.inbound - b.outbound;
+                    return `<li><b>${b.code}</b> (${b.name}): รับเข้า <b>${fmtNum(b.inbound)}</b> | เบิกออก <b>${fmtNum(b.outbound)}</b> | คงเหลือสุทธิ <b>${fmtNum(net)}</b> ${b.unit}</li>`;
+                }).join("");
+                breakdownHtml = `<div class="item-breakdown-box"><b>📊 สรุปแยกตามรหัสสินค้า:</b><ul>${lis}</ul></div>`;
+            }
+
+            container.innerHTML = `
+                <div class="summary-grid">
+                    <div class="summary-card summary-in">
+                        <div class="summary-label">ยอดรับเข้า (Inbound รวม)</div>
+                        <div class="summary-value">+${fmtNum(totalInbound)}</div>
+                    </div>
+                    <div class="summary-card summary-out">
+                        <div class="summary-label">ยอดเบิกออก (Outbound รวม)</div>
+                        <div class="summary-value">-${fmtNum(totalOutbound)}</div>
+                    </div>
+                    <div class="summary-card summary-net">
+                        <div class="summary-label">ยอดคงเหลือสุทธิ</div>
+                        <div class="summary-value">${fmtNum(netBalance)}</div>
+                    </div>
+                </div>
+                ${breakdownHtml}
+            `;
+        }
 
         function setInboundFormLocked(locked) {
             isLocationLockedByStock = locked;
@@ -532,6 +650,7 @@
         }
 
         window.onload = function() {
+            renderSearchSummary();
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('q') || urlParams.get('start_date') || urlParams.get('end_date')) {
                 document.getElementById("statusSelect").value = "Cycle Count";
