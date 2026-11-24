@@ -390,7 +390,7 @@
     <div class="container">
         <div class="brand-header">
             <div class="brand-logo-wrap">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="PERFECT EARTH Logo" class="brand-logo-img" onerror="this.style.display='none';">
+                <img src="/static/logo.png" alt="PERFECT EARTH Logo" class="brand-logo-img" onerror="this.style.display='none';">
             </div>
             <div class="brand-badge">WAREHOUSE MANAGEMENT SYSTEM</div>
             <h2>ระบบ WMS คลังสินค้า</h2>
@@ -568,7 +568,7 @@
                     <div class="printable-label-qr" id="qrCodeBox"></div>
                     <div class="printable-label-info">
                         <div class="label-logo-row">
-                            <img src="{{ url_for('static', filename='logo.png') }}" alt="PERFECT EARTH Logo" class="label-logo-img" onerror="this.style.display='none';">
+                            <img src="/static/logo.png" alt="PERFECT EARTH Logo" class="label-logo-img" onerror="this.style.display='none';">
                         </div>
                         <div><b>Item Code:</b> <span id="lblCode">-</span></div>
                         <div><b>Description:</b> <span id="lblDesc">-</span></div>
@@ -630,7 +630,7 @@
     <script>
         const initialInboundLocation = "{{ location|e }}";
         const searchResultsData = {{ search_results|tojson|safe }};
-        const logoUrl = "{{ url_for('static', filename='logo.png', _external=True) }}";
+        const logoUrl = window.location.origin + "/static/logo.png";
         let isLocationLockedByStock = false;
         let isSearchingOutbound = false;
 
