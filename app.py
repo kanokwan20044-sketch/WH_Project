@@ -2,7 +2,6 @@ import os
 import json
 import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-import openpyxl
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -38,6 +37,10 @@ def parse_qty(val):
 
 def format_qty(num):
     return int(num) if float(num).is_integer() else round(float(num), 2)
+
+
+def clean_txt(val):
+    return ' '.join(str(val or '').replace('\u00a0', ' ').split()).strip()
 
 
 @app.route('/')
@@ -128,35 +131,41 @@ def check_location_stock():
         stock_map = {}
         for row in all_rows[1:]:
             if len(row) >= 8:
-                row_loc = row[1].strip()
+                row_loc = clean_txt(row[1])
                 if row_loc.lower() != loc.lower():
                     continue
 
-                status = row[2].strip().lower()
-                item_code = row[3].strip()
-                product_name = row[4].strip()
-                lot_serial = row[5].strip()
+                status = clean_txt(row[2]).lower()
+                item_code = clean_txt(row[3])
+                product_name = clean_txt(row[4])
+                lot_serial = clean_txt(row[5])
                 qty = parse_qty(row[6])
-                unit = row[7].strip()
+                unit = clean_txt(row[7])
 
-                key = (item_code, product_name, lot_serial, unit)
+                key = (item_code.lower(), product_name.lower(), lot_serial.lower(), unit.lower())
                 if key not in stock_map:
-                    stock_map[key] = 0.0
+                    stock_map[key] = {
+                        'item_code': item_code,
+                        'product_name': product_name,
+                        'lot_serial': lot_serial,
+                        'unit': unit,
+                        'balance': 0.0
+                    }
 
                 if status == 'inbound':
-                    stock_map[key] += qty
+                    stock_map[key]['balance'] += qty
                 elif status == 'outbound':
-                    stock_map[key] -= qty
+                    stock_map[key]['balance'] -= qty
 
         active_items = []
-        for (item_code, product_name, lot_serial, unit), balance in stock_map.items():
-            if balance > 0:
+        for item in stock_map.values():
+            if item['balance'] > 0:
                 active_items.append({
-                    'item_code': item_code,
-                    'product_name': product_name,
-                    'lot_serial': lot_serial,
-                    'quantity': format_qty(balance),
-                    'unit': unit
+                    'item_code': item['item_code'],
+                    'product_name': item['product_name'],
+                    'lot_serial': item['lot_serial'],
+                    'quantity': format_qty(item['balance']),
+                    'unit': item['unit']
                 })
 
         return jsonify({
@@ -183,14 +192,14 @@ def get_product_info():
         for row in rows[1:]:
             if not row or len(row) < 3:
                 continue
-            row_code = str(row[0]).strip().lower()
+            row_code = clean_txt(row[0]).lower()
             if row_code == code:
-                fg_name = str(row[1]).strip()
-                unit = str(row[2]).strip()
-                kg_per_unit = str(row[3]).strip() if len(row) > 3 and str(row[3]).strip() else '1'
+                fg_name = clean_txt(row[1])
+                unit = clean_txt(row[2])
+                kg_per_unit = clean_txt(row[3]) if len(row) > 3 and clean_txt(row[3]) else '1'
                 return jsonify({
                     'success': True,
-                    'item_code': str(row[0]).strip(),
+                    'item_code': clean_txt(row[0]),
                     'product_name': fg_name,
                     'description': fg_name,
                     'unit': unit,
@@ -209,9 +218,6 @@ def search_outbound():
     if not code:
         return jsonify({'success': False})
 
-    def norm(val):
-        return ' '.join(str(val or '').replace('\u00a0', ' ').split()).strip().lower()
-
     try:
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
@@ -219,72 +225,64 @@ def search_outbound():
         master_unit = ""
 
         for row in master_rows[1:]:
-            if len(row) >= 3 and norm(row[0]) == norm(code):
-                master_name = str(row[1]).strip()
-                master_unit = str(row[2]).strip()
+            if len(row) >= 3 and clean_txt(row[0]).lower() == code.lower():
+                master_name = clean_txt(row[1])
+                master_unit = clean_txt(row[2])
                 break
 
         data_sheet = get_google_sheet('DATA_WH')
         data_rows = data_sheet.get_all_values()
 
-        lot_stock = {}
-        inbound_records = []
+        stock_by_loc = {}
+        ordered_keys = []
 
         for row in data_rows[1:]:
-            if len(row) >= 8 and norm(row[3]) == norm(code):
-                row_loc = ' '.join(str(row[1] or '').replace('\u00a0', ' ').split()).strip() or 'ไม่ระบุพิกัด'
-                status = norm(row[2])
-                prod_name = str(row[4]).strip() or master_name or 'ไม่ระบุชื่อสินค้า'
-                lot_serial = ' '.join(str(row[5] or '').replace('\u00a0', ' ').split()).strip()
+            if len(row) >= 8 and clean_txt(row[3]).lower() == code.lower():
+                row_loc = clean_txt(row[1]) or 'ไม่ระบุพิกัด'
+                status = clean_txt(row[2]).lower()
+                prod_name = clean_txt(row[4]) or master_name or 'ไม่ระบุชื่อสินค้า'
+                lot_serial = clean_txt(row[5]) or '-'
                 qty = parse_qty(row[6])
-                unit = ' '.join(str(row[7] or '').replace('\u00a0', ' ').split()).strip() or master_unit or 'Piece'
+                unit = clean_txt(row[7]) or master_unit or 'Piece'
 
-                key = (norm(lot_serial), norm(row_loc))
-                if key not in lot_stock:
-                    lot_stock[key] = {
+                key = (lot_serial.lower(), row_loc.lower())
+                if key not in stock_by_loc:
+                    stock_by_loc[key] = {
                         'product_name': prod_name,
                         'lot_serial': lot_serial,
                         'location': row_loc,
                         'unit': unit,
                         'balance': 0.0
                     }
+                    ordered_keys.append(key)
 
                 if status == 'inbound':
-                    lot_stock[key]['balance'] += qty
-                    inbound_records.append({
-                        'product_name': prod_name,
-                        'lot_serial': lot_serial,
-                        'location': row_loc,
-                        'unit': unit
-                    })
+                    stock_by_loc[key]['balance'] += qty
                 elif status == 'outbound':
-                    lot_stock[key]['balance'] -= qty
+                    stock_by_loc[key]['balance'] -= qty
 
         options = []
-        seen_keys = set()
-        for key, info in lot_stock.items():
-            if info['balance'] > 0 and key not in seen_keys:
-                seen_keys.add(key)
+        for key in ordered_keys:
+            info = stock_by_loc[key]
+            if info['balance'] > 0:
                 options.append({
                     'product_name': master_name or info['product_name'],
-                    'lot_serial': info['lot_serial'] if info['lot_serial'] else '-',
+                    'lot_serial': info['lot_serial'],
                     'location': info['location'],
                     'balance': format_qty(info['balance']),
                     'unit': master_unit or info['unit']
                 })
 
-        if not options and inbound_records:
-            for rec in reversed(inbound_records):
-                uniq = (norm(rec['lot_serial']), norm(rec['location']))
-                if uniq not in seen_keys:
-                    seen_keys.add(uniq)
-                    options.append({
-                        'product_name': master_name or rec['product_name'],
-                        'lot_serial': rec['lot_serial'] if rec['lot_serial'] else '-',
-                        'location': rec['location'],
-                        'balance': 0,
-                        'unit': master_unit or rec['unit']
-                    })
+        if not options and ordered_keys:
+            for key in reversed(ordered_keys):
+                info = stock_by_loc[key]
+                options.append({
+                    'product_name': master_name or info['product_name'],
+                    'lot_serial': info['lot_serial'],
+                    'location': info['location'],
+                    'balance': 0,
+                    'unit': master_unit or info['unit']
+                })
 
         return jsonify({
             'success': True,
@@ -302,13 +300,13 @@ def search_outbound():
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
-        location = request.form.get('location', '').strip() or 'ไม่ได้ระบุพิกัด'
-        status = request.form.get('status', '').strip()
-        item_code = request.form.get('item_code', '').strip()
-        product_name = request.form.get('product_name', '').strip()
-        lot_serial = request.form.get('lot_serial', '').strip()
-        quantity = request.form.get('quantity', '1').strip()
-        unit = request.form.get('unit', '').strip()
+        location = clean_txt(request.form.get('location', '')) or 'ไม่ได้ระบุพิกัด'
+        status = clean_txt(request.form.get('status', ''))
+        item_code = clean_txt(request.form.get('item_code', ''))
+        product_name = clean_txt(request.form.get('product_name', ''))
+        lot_serial = clean_txt(request.form.get('lot_serial', ''))
+        quantity = clean_txt(request.form.get('quantity', '1')) or '1'
+        unit = clean_txt(request.form.get('unit', ''))
 
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
