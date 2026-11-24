@@ -209,6 +209,9 @@ def search_outbound():
     if not code:
         return jsonify({'success': False})
 
+    def norm(val):
+        return ' '.join(str(val or '').replace('\u00a0', ' ').split()).strip().lower()
+
     try:
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
@@ -216,7 +219,7 @@ def search_outbound():
         master_unit = ""
 
         for row in master_rows[1:]:
-            if len(row) >= 3 and str(row[0]).strip().lower() == code.lower():
+            if len(row) >= 3 and norm(row[0]) == norm(code):
                 master_name = str(row[1]).strip()
                 master_unit = str(row[2]).strip()
                 break
@@ -228,15 +231,15 @@ def search_outbound():
         inbound_records = []
 
         for row in data_rows[1:]:
-            if len(row) >= 8 and str(row[3]).strip().lower() == code.lower():
-                row_loc = str(row[1]).strip() or 'ไม่ระบุพิกัด'
-                status = str(row[2]).strip().lower()
+            if len(row) >= 8 and norm(row[3]) == norm(code):
+                row_loc = ' '.join(str(row[1] or '').replace('\u00a0', ' ').split()).strip() or 'ไม่ระบุพิกัด'
+                status = norm(row[2])
                 prod_name = str(row[4]).strip() or master_name or 'ไม่ระบุชื่อสินค้า'
-                lot_serial = str(row[5]).strip()
+                lot_serial = ' '.join(str(row[5] or '').replace('\u00a0', ' ').split()).strip()
                 qty = parse_qty(row[6])
-                unit = str(row[7]).strip() or master_unit or 'Piece'
+                unit = ' '.join(str(row[7] or '').replace('\u00a0', ' ').split()).strip() or master_unit or 'Piece'
 
-                key = (lot_serial.lower(), row_loc.lower(), unit.lower())
+                key = (norm(lot_serial), norm(row_loc))
                 if key not in lot_stock:
                     lot_stock[key] = {
                         'product_name': prod_name,
@@ -272,7 +275,7 @@ def search_outbound():
 
         if not options and inbound_records:
             for rec in reversed(inbound_records):
-                uniq = (rec['lot_serial'].lower(), rec['location'].lower(), rec['unit'].lower())
+                uniq = (norm(rec['lot_serial']), norm(rec['location']))
                 if uniq not in seen_keys:
                     seen_keys.add(uniq)
                     options.append({

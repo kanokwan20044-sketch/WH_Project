@@ -978,7 +978,16 @@
                         document.getElementById("productNameInput").value = defaultName;
                         document.getElementById("unitInput").value = defaultUnit;
 
-                        const options = data.options || [];
+                        const rawOptions = data.options || [];
+                        const uniqueMap = new Map();
+                        rawOptions.forEach(opt => {
+                            const k = `${String(opt.lot_serial || "-").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}`;
+                            if (!uniqueMap.has(k)) {
+                                uniqueMap.set(k, opt);
+                            }
+                        });
+                        const options = Array.from(uniqueMap.values());
+
                         if (options.length > 0) {
                             pickerBox.style.display = "block";
                             options.forEach((opt, idx) => {
