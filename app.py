@@ -214,7 +214,6 @@ def search_outbound():
         data_sheet = get_google_sheet('DATA_WH')
         data_rows = data_sheet.get_all_values()
 
-        # รวมยอดคงเหลือแยกตาม (lot_serial, location, product_name, unit) สำหรับรหัสสินค้านี้
         lot_stock = {}
         inbound_records = []
 
@@ -253,7 +252,6 @@ def search_outbound():
                     'unit': unit
                 })
 
-        # หากยอดคงเหลือเป็น 0 หรือไม่เคยมีรายการ ให้ดึงรายการ Lot จากประวัติ Inbound ล่าสุดมาให้เลือกแทน
         if not options and inbound_records:
             seen = set()
             for rec in reversed(inbound_records):

@@ -13,17 +13,21 @@
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
         input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
+        input:disabled, select:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
         .btn-submit { width: 100%; background-color: #2f855a; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .btn-submit:hover { background-color: #276749; }
+        .btn-submit:hover:not(:disabled) { background-color: #276749; }
         .btn-scanner { background-color: #3182ce; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
-        .btn-scanner:hover { background-color: #2b6cb0; }
+        .btn-scanner:hover:not(:disabled) { background-color: #2b6cb0; }
+        .btn-outbound-scan { background-color: #2b6cb0; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-bottom: 10px; width: 100%; }
+        .btn-outbound-scan:hover:not(:disabled) { background-color: #2c5282; }
         .btn-search { background-color: #d69e2e; color: white; padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; width: 120px; }
-        .btn-search:hover { background-color: #b7791f; }
+        .btn-search:hover:not(:disabled) { background-color: #b7791f; }
+        .btn-reset-loc { background-color: #c53030; color: white; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; margin-top: 10px; }
         .location-box { padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: 600; text-align: center; }
         .has-location { background-color: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
         .no-location { background-color: #fed7d7; color: #742a2a; border: 1px solid #feb2b2; }
-        .stock-warning-box { background-color: #fffbeb; color: #92400e; border: 1px solid #f59e0b; padding: 14px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; }
-        .stock-warning-title { font-weight: 700; color: #b45309; margin-bottom: 8px; font-size: 15px; }
+        .stock-lock-box { background-color: #fff5f5; color: #9b2c2c; border: 2px solid #f56565; padding: 14px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; }
+        .stock-lock-title { font-weight: 700; color: #c53030; margin-bottom: 8px; font-size: 15px; }
         .stock-item-list { margin: 0; padding-left: 20px; }
         .stock-item-list li { margin-bottom: 6px; }
         .outbound-lot-picker { background-color: #ebf8ff; border: 1px solid #90cdf4; border-radius: 8px; padding: 14px; margin-bottom: 20px; display: none; }
@@ -32,12 +36,14 @@
         .lot-choice-btn:last-child { margin-bottom: 0; }
         .lot-choice-btn:hover { background: #e6fffa; border-color: #319795; }
         .lot-choice-btn.selected { background: #c6f6d5; border-color: #2f855a; color: #22543d; font-weight: 600; }
+        .outbound-summary-box { background-color: #f0fff4; border: 1px solid #9ae6b4; border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; font-size: 13px; color: #22543d; display: none; }
         .outbound-location-result { background-color: #ebf8ff; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-weight: 600; text-align: center; border: 1px solid #90cdf4; color: #2b6cb0; display: none; }
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
         #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
         #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
+        #outboundReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
     </style>
 </head>
 <body>
@@ -102,22 +108,32 @@
                 <span>{% if location %}{{ location }}{% else %}ยังไม่ได้ระบุพิกัด (กรุณาสแกน QR Code ล็อกสินค้าก่อน){% endif %}</span>
             </div>
 
-            <!-- กล่องแจ้งเตือนเมื่อมีสินค้าคงค้างใน Location ที่เลือก -->
-            <div class="stock-warning-box" id="stockWarningBox">
-                <div class="stock-warning-title" id="stockWarningTitle">⚠️ แจ้งเตือน: ล็อกนี้ยังมีสินค้าคงค้างและยังไม่ได้เบิกจ่าย</div>
-                <ul class="stock-item-list" id="stockWarningList"></ul>
+            <!-- กล่องแจ้งเตือนและล็อกไม่ให้กรอก/สแกนต่อ เมื่อล็อกนี้มีสินค้าอยู่แล้ว -->
+            <div class="stock-lock-box" id="stockLockBox">
+                <div class="stock-lock-title" id="stockLockTitle">🚫 ล็อกนี้มีสินค้าอยู่แล้ว ไม่สามารถกรอกหรือสแกนเพิ่มได้</div>
+                <ul class="stock-item-list" id="stockLockList"></ul>
+                <button type="button" class="btn-reset-loc" onclick="resetInboundLocation()">🔄 สแกนล็อกอื่นใหม่</button>
             </div>
 
             <div class="form-group" id="inboundScannerBtnGroup">
-                <button type="button" class="btn-scanner" onclick="startLocationScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
+                <button type="button" class="btn-scanner" id="btnScanLocation" onclick="startLocationScanner()">📷 สแกนครั้งที่ 1: สแกน QR Code ล็อกสินค้า</button>
                 <div id="reader"></div>
             </div>
         </div>
 
-        <!-- กล่องให้เลือกรายการ Lot เมื่อค้นหารหัสสินค้าใน Outbound -->
+        <!-- กล่องให้เลือกรายการ Lot เมื่อค้นหาหรือสแกนรหัสสินค้าใน Outbound -->
         <div class="outbound-lot-picker" id="outboundLotPicker">
             <div class="outbound-lot-title">📦 เลือกรายการ Lot สินค้าที่ต้องการเบิกจ่าย:</div>
             <div id="outboundLotChoices"></div>
+        </div>
+
+        <!-- กล่องสรุปข้อมูลสินค้าที่เลือกสำหรับเบิกจ่าย (Outbound) -->
+        <div class="outbound-summary-box" id="outboundSummaryBox">
+            <div><b>📋 ข้อมูลสินค้าที่เลือกเบิกจ่าย:</b></div>
+            <div style="margin-top: 4px;">
+                รหัสสินค้า: <b id="sumItemCode">-</b> | ชื่อสินค้า: <b id="sumProductName">-</b><br>
+                Lot: <b id="sumLotSerial" style="color: #b7791f;">-</b> | Location: <b id="sumLocation">-</b> | หน่วย: <b id="sumUnit">-</b>
+            </div>
         </div>
 
         <!-- ส่วนแสดง Location ที่ค้นพบ (สำหรับ Outbound) -->
@@ -140,12 +156,20 @@
             <div id="itemFieldsGroup">
                 <div class="form-group">
                     <label id="itemCodeLabel">รหัสสินค้า (Item Code):</label>
-                    <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
-                        <input type="text" name="item_code" id="itemCodeInput" placeholder="พิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;">
-                        <button type="button" class="btn-search" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
+
+                    <!-- ปุ่มสแกนสินค้าออกสำหรับ Outbound -->
+                    <div id="outboundScannerInputGroup" style="display: none; margin-bottom: 8px;">
+                        <button type="button" class="btn-outbound-scan" id="btnScanOutbound" onclick="startOutboundScanner()">📷 สแกนบาร์โค้ด / QR สินค้าออก</button>
+                        <div id="outboundReader"></div>
                     </div>
-                    <div id="inboundScannerInputGroup" style="margin-top: 8px;">
-                        <button type="button" class="btn-scanner" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
+
+                    <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
+                        <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;">
+                        <button type="button" class="btn-search" id="btnSearchOutbound" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
+                    </div>
+
+                    <div id="inboundScannerInputGroup" style="display: none; margin-top: 8px;">
+                        <button type="button" class="btn-scanner" id="btnScanItem" style="background-color: #2b6cb0; margin-bottom: 8px;" onclick="startItemScanner()">📷 สแกนครั้งที่ 2: สแกนบาร์โค้ดสินค้า</button>
                         <div id="itemReader"></div>
                     </div>
                 </div>
@@ -171,22 +195,45 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-submit">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
+            <button type="submit" class="btn-submit" id="btnSubmitForm">💾 บันทึกข้อมูลเข้าสู่ระบบ Google Sheets</button>
         </form>
     </div>
 
     <script>
         const initialInboundLocation = "{{ location|e }}";
-        let existingStockInLocation = [];
+        let isLocationLockedByStock = false;
+
+        function setInboundFormLocked(locked) {
+            isLocationLockedByStock = locked;
+            const fieldIds = ["itemCodeInput", "productNameInput", "lotSerialInput", "quantityInput", "unitInput"];
+            fieldIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = locked;
+            });
+            const btnScanItem = document.getElementById("btnScanItem");
+            const btnSubmit = document.getElementById("btnSubmitForm");
+            if (btnScanItem) btnScanItem.disabled = locked;
+            if (btnSubmit) btnSubmit.disabled = locked;
+
+            if (locked && itemScannerInstance) {
+                itemScannerInstance.stop().then(() => {
+                    document.getElementById("itemReader").style.display = "none";
+                }).catch(() => {});
+            }
+        }
+
+        function resetInboundLocation() {
+            window.location.href = "/";
+        }
 
         function checkLocationStock(loc) {
-            const warningBox = document.getElementById("stockWarningBox");
-            const warningList = document.getElementById("stockWarningList");
-            const warningTitle = document.getElementById("stockWarningTitle");
+            const lockBox = document.getElementById("stockLockBox");
+            const lockList = document.getElementById("stockLockList");
+            const lockTitle = document.getElementById("stockLockTitle");
 
-            existingStockInLocation = [];
-            warningList.innerHTML = "";
-            warningBox.style.display = "none";
+            lockList.innerHTML = "";
+            lockBox.style.display = "none";
+            setInboundFormLocked(false);
 
             if (!loc) return;
 
@@ -194,17 +241,17 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.has_stock && data.items.length > 0) {
-                        existingStockInLocation = data.items;
-                        warningTitle.innerText = `⚠️ แจ้งเตือน: ล็อก "${data.location}" มีสินค้าค้างอยู่และยังไม่ได้เบิกจ่าย`;
+                        lockTitle.innerText = `🚫 ล็อก "${data.location}" มีสินค้าอยู่แล้ว ไม่สามารถกรอกหรือสแกนต่อได้`;
                         data.items.forEach(item => {
                             const li = document.createElement("li");
                             li.innerHTML = `รหัสสินค้า: <b>${item.item_code}</b> | ชื่อสินค้า: <b>${item.product_name}</b>` +
                                 (item.lot_serial ? ` | Lot: <b>${item.lot_serial}</b>` : '') +
                                 ` | คงเหลือ: <b>${item.quantity} ${item.unit}</b>`;
-                            warningList.appendChild(li);
+                            lockList.appendChild(li);
                         });
                         if (document.getElementById("statusSelect").value === "Inbound") {
-                            warningBox.style.display = "block";
+                            lockBox.style.display = "block";
+                            setInboundFormLocked(true);
                         }
                     }
                 })
@@ -221,6 +268,10 @@
 
         let itemScannerInstance = null;
         function startItemScanner() {
+            if (isLocationLockedByStock) {
+                alert("ล็อกนี้มีสินค้าอยู่แล้ว ไม่สามารถสแกนสินค้าเข้าเพิ่มได้");
+                return;
+            }
             const readerDiv = document.getElementById("itemReader");
             readerDiv.style.display = "block";
 
@@ -235,6 +286,35 @@
                     processScannedData(decodedText);
                     itemScannerInstance.stop().then(() => {
                         readerDiv.style.display = "none";
+                    }).catch(err => console.log(err));
+                },
+                () => {}
+            ).catch(err => {
+                alert("ไม่สามารถเปิดกล้องได้: " + err);
+            });
+        }
+
+        let outboundScannerInstance = null;
+        function startOutboundScanner() {
+            const readerDiv = document.getElementById("outboundReader");
+            readerDiv.style.display = "block";
+
+            if (!outboundScannerInstance) {
+                outboundScannerInstance = new Html5Qrcode("outboundReader");
+            }
+
+            outboundScannerInstance.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    let code = decodedText.trim();
+                    if (code.includes('#')) {
+                        code = code.split('#')[0].trim();
+                    }
+                    document.getElementById("itemCodeInput").value = code;
+                    outboundScannerInstance.stop().then(() => {
+                        readerDiv.style.display = "none";
+                        searchOutboundLocation();
                     }).catch(err => console.log(err));
                 },
                 () => {}
@@ -278,23 +358,40 @@
                 .catch(err => console.error("Error fetching master code:", err));
         }
 
+        function updateOutboundSummary(code, prodName, lotSerial, loc, unit) {
+            document.getElementById("sumItemCode").innerText = code || "-";
+            document.getElementById("sumProductName").innerText = prodName || "-";
+            document.getElementById("sumLotSerial").innerText = lotSerial || "-";
+            document.getElementById("sumLocation").innerText = loc || "-";
+            document.getElementById("sumUnit").innerText = unit || "-";
+            document.getElementById("outboundSummaryBox").style.display = "block";
+        }
+
         function selectOutboundOption(opt, btnElement) {
             document.querySelectorAll(".lot-choice-btn").forEach(b => b.classList.remove("selected"));
             if (btnElement) btnElement.classList.add("selected");
 
-            document.getElementById("productNameInput").value = opt.product_name || "";
-            document.getElementById("lotSerialInput").value = (opt.lot_serial && opt.lot_serial !== "-") ? opt.lot_serial : "";
-            document.getElementById("unitInput").value = opt.unit || "Piece";
-            document.getElementById("foundLocationText").innerText = opt.location || "ไม่ระบุพิกัด";
+            const code = document.getElementById("itemCodeInput").value.trim();
+            const prodName = opt.product_name || "";
+            const lotVal = (opt.lot_serial && opt.lot_serial !== "-") ? opt.lot_serial : "";
+            const locVal = opt.location || "ไม่ระบุพิกัด";
+            const unitVal = opt.unit || "Piece";
+
+            document.getElementById("productNameInput").value = prodName;
+            document.getElementById("lotSerialInput").value = lotVal;
+            document.getElementById("unitInput").value = unitVal;
+            document.getElementById("foundLocationText").innerText = locVal;
             document.getElementById("outboundLocationBox").style.display = "block";
-            document.getElementById("formLocationInput").value = opt.location || "";
+            document.getElementById("formLocationInput").value = locVal;
+
+            updateOutboundSummary(code, prodName, lotVal || "-", locVal, unitVal);
             document.getElementById("quantityInput").focus();
         }
 
         function searchOutboundLocation() {
             const code = document.getElementById("itemCodeInput").value.trim();
             if (!code) {
-                alert("กรุณากรอกรหัสสินค้าก่อนกดค้นหา");
+                alert("กรุณาสแกนหรือกรอกรหัสสินค้าก่อนกดค้นหา");
                 return;
             }
 
@@ -302,13 +399,16 @@
             const choicesDiv = document.getElementById("outboundLotChoices");
             choicesDiv.innerHTML = "";
             pickerBox.style.display = "none";
+            document.getElementById("outboundSummaryBox").style.display = "none";
 
             fetch(`/search_outbound?code=${encodeURIComponent(code)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        document.getElementById("productNameInput").value = data.product_name || "";
-                        document.getElementById("unitInput").value = data.unit || "Piece";
+                        const defaultName = data.product_name || "";
+                        const defaultUnit = data.unit || "Piece";
+                        document.getElementById("productNameInput").value = defaultName;
+                        document.getElementById("unitInput").value = defaultUnit;
 
                         const options = data.options || [];
                         if (options.length > 0) {
@@ -324,7 +424,6 @@
                                 };
                                 choicesDiv.appendChild(btn);
 
-                                // หากมีตัวเลือกเดียว ให้เลือกอัตโนมัติทันที
                                 if (options.length === 1 && idx === 0) {
                                     selectOutboundOption(opt, btn);
                                 }
@@ -333,6 +432,7 @@
                             document.getElementById("foundLocationText").innerText = "ไม่พบพิกัดจัดเก็บในระบบ";
                             document.getElementById("outboundLocationBox").style.display = "block";
                             document.getElementById("formLocationInput").value = "ไม่พบพิกัดจัดเก็บในระบบ";
+                            updateOutboundSummary(code, defaultName, "-", "ไม่พบพิกัดจัดเก็บในระบบ", defaultUnit);
                         }
                     } else {
                         alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
@@ -353,62 +453,75 @@
             const searchSection = document.getElementById("searchSection");
             const inboundContainer = document.getElementById("inboundLocationContainer");
             const inboundScannerGroup = document.getElementById("inboundScannerInputGroup");
+            const outboundScannerGroup = document.getElementById("outboundScannerInputGroup");
             const outboundSearchContainer = document.getElementById("outboundSearchContainer");
             const outboundLotPicker = document.getElementById("outboundLotPicker");
+            const outboundSummaryBox = document.getElementById("outboundSummaryBox");
             const outboundBox = document.getElementById("outboundLocationBox");
-            const warningBox = document.getElementById("stockWarningBox");
+            const lockBox = document.getElementById("stockLockBox");
             const itemFieldsGroup = document.getElementById("itemFieldsGroup");
+            const btnSubmit = document.getElementById("btnSubmitForm");
 
             if (statusSelect === "Inbound") {
                 searchSection.style.display = "none";
                 inboundContainer.style.display = "block";
                 inboundScannerGroup.style.display = "block";
+                outboundScannerGroup.style.display = "none";
                 outboundSearchContainer.style.display = "none";
                 outboundLotPicker.style.display = "none";
+                outboundSummaryBox.style.display = "none";
                 outboundBox.style.display = "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
                 document.getElementById("formLocationInput").value = initialInboundLocation;
-                if (existingStockInLocation.length > 0) {
-                    warningBox.style.display = "block";
+
+                if (initialInboundLocation) {
+                    checkLocationStock(initialInboundLocation);
+                } else {
+                    lockBox.style.display = "none";
+                    setInboundFormLocked(false);
                 }
             } else if (statusSelect === "Outbound") {
                 searchSection.style.display = "none";
                 inboundContainer.style.display = "none";
                 inboundScannerGroup.style.display = "none";
+                outboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "flex";
                 if (document.getElementById("outboundLotChoices").children.length > 0) {
                     outboundLotPicker.style.display = "block";
+                    outboundSummaryBox.style.display = "block";
                 }
                 outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
-                warningBox.style.display = "none";
+                lockBox.style.display = "none";
+                setInboundFormLocked(false);
+                if (btnSubmit) btnSubmit.disabled = false;
             } else if (statusSelect === "Cycle Count") {
                 searchSection.style.display = "block";
                 inboundContainer.style.display = "none";
                 inboundScannerGroup.style.display = "none";
+                outboundScannerGroup.style.display = "none";
                 outboundSearchContainer.style.display = "none";
                 outboundLotPicker.style.display = "none";
+                outboundSummaryBox.style.display = "none";
                 outboundBox.style.display = "none";
                 itemFieldsGroup.style.display = "none";
                 setItemFieldsRequired(false);
-                warningBox.style.display = "none";
+                lockBox.style.display = "none";
+                setInboundFormLocked(false);
+                if (btnSubmit) btnSubmit.disabled = false;
             }
         }
 
         function handleFormSubmit() {
             const statusSelect = document.getElementById("statusSelect").value;
             if (statusSelect === "Inbound") {
-                document.getElementById("formLocationInput").value = initialInboundLocation;
-                if (existingStockInLocation.length > 0) {
-                    const summaryText = existingStockInLocation
-                        .map(item => `- รหัส: ${item.item_code} | ชื่อ: ${item.product_name} (คงเหลือ ${item.quantity} ${item.unit})`)
-                        .join("\n");
-                    return confirm(
-                        `⚠️ ล็อก "${initialInboundLocation}" ยังมีสินค้าคงค้างและยังไม่ได้เบิกจ่าย:\n\n${summaryText}\n\nต้องการนำสินค้าเข้าล็อกนี้ต่อหรือไม่?`
-                    );
+                if (isLocationLockedByStock) {
+                    alert("ล็อกนี้มีสินค้าอยู่แล้ว ไม่สามารถบันทึกเพิ่มได้");
+                    return false;
                 }
+                document.getElementById("formLocationInput").value = initialInboundLocation;
             } else if (statusSelect === "Outbound") {
                 const foundLoc = document.getElementById("foundLocationText").innerText.trim();
                 if (foundLoc && foundLoc !== "-") {
@@ -424,9 +537,6 @@
                 document.getElementById("statusSelect").value = "Cycle Count";
             }
             handleStatusChange();
-            if (initialInboundLocation) {
-                checkLocationStock(initialInboundLocation);
-            }
         };
     </script>
 </body>
