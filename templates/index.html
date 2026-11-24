@@ -567,7 +567,7 @@
                     </div>
 
                     <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
-                        <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;" onchange="fetchProductInfo()">
+                        <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;">
                         <button type="button" class="btn-search" id="btnSearchOutbound" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
                     </div>
 
@@ -606,6 +606,7 @@
         const initialInboundLocation = "{{ location|e }}";
         const searchResultsData = {{ search_results|tojson|safe }};
         let isLocationLockedByStock = false;
+        let isSearchingOutbound = false;
 
         function selectModeTab(mode) {
             const selectEl = document.getElementById("statusSelect");
@@ -957,11 +958,15 @@
         }
 
         function searchOutboundLocation() {
-            const code = document.getElementById("itemCodeInput").value.trim();
+            const codeInput = document.getElementById("itemCodeInput");
+            const code = codeInput ? codeInput.value.trim() : "";
             if (!code) {
                 alert("กรุณาสแกนหรือกรอกรหัสสินค้าก่อนกดค้นหา");
                 return;
             }
+
+            if (isSearchingOutbound) return;
+            isSearchingOutbound = true;
 
             const pickerBox = document.getElementById("outboundLotPicker");
             const choicesDiv = document.getElementById("outboundLotChoices");
@@ -969,9 +974,12 @@
             pickerBox.style.display = "none";
             document.getElementById("outboundSummaryBox").style.display = "none";
 
-            fetch(`/search_outbound?code=${encodeURIComponent(code)}`)
+            fetch(`/search_outbound?code=${encodeURIComponent(code)}&t=${new Date().getTime()}`)
                 .then(response => response.json())
                 .then(data => {
+                    isSearchingOutbound = false;
+                    choicesDiv.innerHTML = "";
+
                     if (data.success) {
                         const defaultName = data.product_name || "";
                         const defaultUnit = data.unit || "Piece";
@@ -981,7 +989,7 @@
                         const rawOptions = data.options || [];
                         const uniqueMap = new Map();
                         rawOptions.forEach(opt => {
-                            const k = `${String(opt.lot_serial || "-").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}`;
+                            const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}`;
                             if (!uniqueMap.has(k)) {
                                 uniqueMap.set(k, opt);
                             }
@@ -1010,7 +1018,10 @@
                         alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
                     }
                 })
-                .catch(err => console.error("Error:", err));
+                .catch(err => {
+                    isSearchingOutbound = false;
+                    console.error("Error:", err);
+                });
         }
 
         function setItemFieldsRequired(isRequired) {
