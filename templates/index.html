@@ -67,10 +67,10 @@
 
         .qr-label-section { background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 10px; padding: 20px; display: none; margin-bottom: 20px; }
         .qr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .printable-label-card { border: 2px solid #1a202c; border-radius: 8px; background: #ffffff; padding: 14px; display: flex; gap: 14px; align-items: center; margin-top: 16px; }
-        .printable-label-qr { width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .printable-label-qr img, .printable-label-qr canvas { width: 130px !important; height: 130px !important; display: block; }
-        .printable-label-info { font-size: 13px; line-height: 1.55; color: #1a202c; word-break: break-word; }
+        .printable-label-card { border: 3px solid #1a202c; border-radius: 10px; background: #ffffff; padding: 20px; display: flex; gap: 22px; align-items: center; margin-top: 16px; }
+        .printable-label-qr { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .printable-label-qr img, .printable-label-qr canvas { width: 200px !important; height: 200px !important; display: block; }
+        .printable-label-info { font-size: 17px; line-height: 1.65; color: #1a202c; word-break: break-word; }
         .btn-print-label { width: 100%; background-color: #2b6cb0; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
         .btn-print-label:hover { background-color: #2c5282; }
 
@@ -309,7 +309,6 @@
         const initialInboundLocation = "{{ location|e }}";
         const searchResultsData = {{ search_results|tojson|safe }};
         let isLocationLockedByStock = false;
-        let qrInstance = null;
 
         function fmtNum(n) {
             return Number.isInteger(n) ? n.toLocaleString() : Number(n.toFixed(2)).toLocaleString();
@@ -404,13 +403,13 @@
             return { code, desc, lot, pallet, qty, unit, refText };
         }
 
-        function renderQRCodeInto(targetElement, text) {
+        function renderQRCodeInto(targetElement, text, pxSize) {
             targetElement.innerHTML = "";
             if (!text || text === "-" || typeof QRCode === "undefined") return;
             new QRCode(targetElement, {
                 text: text,
-                width: 180,
-                height: 180,
+                width: pxSize,
+                height: pxSize,
                 correctLevel: QRCode.CorrectLevel.M
             });
         }
@@ -425,12 +424,12 @@
             document.getElementById("lblRef").innerText = p.refText;
 
             const boxEl = document.getElementById("qrCodeBox");
-            renderQRCodeInto(boxEl, p.refText !== "-" ? p.refText : "CHACHA-WMS");
+            renderQRCodeInto(boxEl, p.refText !== "-" ? p.refText : "CHACHA-WMS", 220);
         }
 
         function printLabelWindow() {
             const p = getQRLabelPayload();
-            const win = window.open("", "_blank", "width=650,height=420");
+            const win = window.open("", "_blank", "width=850,height=520");
             if (!win) {
                 alert("เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาต Pop-up สำหรับเว็บนี้แล้วกดสั่งปริ้นอีกครั้งค่ะ");
                 return;
@@ -443,14 +442,14 @@
                 <html lang="th">
                 <head>
                     <meta charset="UTF-8">
-                    <title>พิมพ์ป้าย QR Code สินค้า</title>
+                    <title>พิมพ์ป้าย QR Code พาเลทสินค้า</title>
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
                     <style>
                         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 16px; color: #000; background: #fff; }
-                        .label-sheet { border: 2px solid #000; border-radius: 6px; padding: 14px; display: flex; gap: 16px; align-items: center; max-width: 560px; }
-                        #printQrBox { width: 140px; height: 140px; flex-shrink: 0; }
-                        #printQrBox img, #printQrBox canvas { width: 140px !important; height: 140px !important; display: block; }
-                        .info { font-size: 13px; line-height: 1.55; word-break: break-word; }
+                        .label-sheet { border: 3px solid #000; border-radius: 8px; padding: 20px; display: flex; gap: 24px; align-items: center; max-width: 760px; }
+                        #printQrBox { width: 220px; height: 220px; flex-shrink: 0; }
+                        #printQrBox img, #printQrBox canvas { width: 220px !important; height: 220px !important; display: block; }
+                        .info { font-size: 18px; line-height: 1.65; word-break: break-word; }
                         @page { margin: 8mm; }
                     </style>
                 </head>
@@ -470,8 +469,8 @@
                         window.onload = function() {
                             new QRCode(document.getElementById("printQrBox"), {
                                 text: ${JSON.stringify(payloadStr)},
-                                width: 180,
-                                height: 180,
+                                width: 220,
+                                height: 220,
                                 correctLevel: QRCode.CorrectLevel.M
                             });
                             setTimeout(function() {
