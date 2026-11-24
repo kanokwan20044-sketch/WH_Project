@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+import openpyxl
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -192,6 +193,48 @@ def get_product_info():
         print(f"Error fetching Master_code: {e}")
 
     return jsonify({'success': False})
+
+
+@app.route('/get_excel_product_info')
+def get_excel_product_info():
+    code = request.args.get('code', '').strip().lower()
+    excel_path = 'RUN_Barcode_Template.xlsx'
+    sheet_name = 'Data'
+
+    if not code:
+        return jsonify({'success': False, 'message': 'ไม่ได้ระบุรหัสสินค้า'})
+
+    if not os.path.exists(excel_path):
+        return jsonify({'success': False, 'message': f'ไม่พบไฟล์ {excel_path}'})
+
+    try:
+        wb = openpyxl.load_workbook(excel_path, data_only=True)
+        ws = wb[sheet_name] if sheet_name in wb.sheetnames else wb.active
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row or len(row) < 2 or not row[1]:
+                continue
+            row_code = str(row[1]).strip().lower()
+            if row_code == code:
+                qty = '' if row[2] is None else str(row[2]).strip()
+                unit = '' if len(row) < 4 or row[3] is None else str(row[3]).strip()
+                lot_serial = '' if len(row) < 5 or row[4] is None else str(row[4]).strip()
+                pallet_no = '' if len(row) < 6 or row[5] is None else str(row[5]).strip()
+                description = '' if len(row) < 7 or row[6] is None else str(row[6]).strip()
+                return jsonify({
+                    'success': True,
+                    'item_code': str(row[1]).strip(),
+                    'quantity': qty or '1',
+                    'unit': unit,
+                    'lot_serial': lot_serial,
+                    'pallet_no': pallet_no,
+                    'description': description
+                })
+    except Exception as e:
+        print(f"Error reading Excel for QR label: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+    return jsonify({'success': False, 'message': f'ไม่พบรหัส {code} ในไฟล์ Excel'})
 
 
 @app.route('/search_outbound')

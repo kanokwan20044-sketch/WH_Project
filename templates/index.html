@@ -10,7 +10,7 @@
         .container { max-width: 780px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         h2 { text-align: center; color: #1a202c; margin-bottom: 5px; }
         .subtitle { text-align: center; color: #718096; margin-bottom: 25px; font-size: 14px; }
-        .form-group { margin-bottom: 20px; }
+        .form-group { margin-bottom: 18px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
         input, select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 14px; background-color: #fff; }
         input:disabled, select:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -41,16 +41,13 @@
         .alert-success { background-color: #c6f6d5; color: #22543d; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: 600; border: 1px solid #9ae6b4; }
         .search-section { background: #edf2f7; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; display: none; }
         .date-row { display: flex; gap: 10px; margin-bottom: 10px; }
-        #reader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; }
-        #itemReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
-        #outboundReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
+        #reader, #itemReader, #outboundReader { width: 100%; max-width: 400px; margin: 0 auto 15px auto; display: none; }
 
         .table-responsive { width: 100%; overflow-x: auto; margin-top: 12px; border-radius: 6px; border: 1px solid #cbd5e0; }
         .cycle-table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; white-space: nowrap; }
         .cycle-table th { background-color: #2b6cb0; color: white; padding: 9px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #2c5282; }
         .cycle-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; color: #2d3748; }
         .cycle-table tr:nth-child(even) { background-color: #f7fafc; }
-        .cycle-table tr:hover { background-color: #edf2f7; }
         .tag-status-inbound { background-color: #c6f6d5; color: #22543d; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
         .tag-status-outbound { background-color: #fed7d7; color: #742a2a; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
         .tag-status-cycle { background-color: #e2e8f0; color: #4a5568; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; }
@@ -67,7 +64,6 @@
         .item-breakdown-box ul { margin: 6px 0 0 0; padding-left: 18px; }
         .item-breakdown-box li { margin-bottom: 4px; }
 
-        /* ส่วนสร้างและปริ้นป้าย QR Code แปะสินค้า */
         .qr-label-section { background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 10px; padding: 20px; display: none; margin-bottom: 20px; }
         .qr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .printable-label-card { border: 2px solid #1a202c; border-radius: 8px; background: #ffffff; padding: 14px; display: flex; gap: 14px; align-items: center; margin-top: 16px; }
@@ -77,7 +73,7 @@
         .btn-print-label:hover { background-color: #2c5282; }
 
         @media (max-width: 640px) {
-            .qr-grid-2 { grid-template-columns: 1fr; }
+            .qr-grid-2, .summary-grid { grid-template-columns: 1fr; }
             .printable-label-card { flex-direction: column; text-align: center; }
         }
 
@@ -103,7 +99,6 @@
             </div>
         {% endif %}
 
-        <!-- หน้าต่าง Cycle Count: ค้นหาคำค้นหา + ตั้งแต่วันที่ + ถึงวันที่ -->
         <div class="search-section" id="searchSection">
             <h3 style="margin-top: 0; color: #2b6cb0; font-size: 16px;">🔍 ค้นหาประวัติและผลตรวจนับ (Cycle Count)</h3>
             <form action="/" method="GET">
@@ -174,7 +169,6 @@
             {% endif %}
         </div>
 
-        <!-- ส่วนสแกน Location ครั้งที่ 1 (สำหรับ Inbound) -->
         <div id="inboundLocationContainer">
             <div class="location-box {% if location %}has-location{% else %}no-location{% endif %}">
                 📍 ตำแหน่งล็อกสินค้า (สแกนครั้งที่ 1):
@@ -193,13 +187,11 @@
             </div>
         </div>
 
-        <!-- กล่องให้เลือกรายการ Lot เมื่อค้นหาหรือสแกนรหัสสินค้าใน Outbound -->
         <div class="outbound-lot-picker" id="outboundLotPicker">
             <div class="outbound-lot-title">📦 เลือกรายการ Lot สินค้าที่ต้องการเบิกจ่าย:</div>
             <div id="outboundLotChoices"></div>
         </div>
 
-        <!-- กล่องสรุปข้อมูลสินค้าที่เลือกสำหรับเบิกจ่าย (Outbound) -->
         <div class="outbound-summary-box" id="outboundSummaryBox">
             <div><b>📋 ข้อมูลสินค้าที่เลือกเบิกจ่าย:</b></div>
             <div style="margin-top: 4px;">
@@ -208,7 +200,6 @@
             </div>
         </div>
 
-        <!-- ส่วนแสดง Location ที่ค้นพบ (สำหรับ Outbound) -->
         <div class="outbound-location-result" id="outboundLocationBox">
             📍 พิกัดจัดเก็บสินค้า (Location): <b id="foundLocationText" style="color: #22543d; font-size: 16px;">-</b>
         </div>
@@ -226,15 +217,14 @@
                 </select>
             </div>
 
-            <!-- หน้าสร้าง & ปริ้นป้าย QR Code แปะบนสินค้า -->
             <div class="qr-label-section" id="qrLabelSection">
-                <h3 style="margin-top: 0; color: #1a365d; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า</h3>
+                <h3 style="margin-top: 0; color: #1a365d; font-size: 16px;">🏷️ สร้างและปริ้นป้าย QR Code แปะบนสินค้า (ดึงจาก Excel)</h3>
 
                 <div class="qr-grid-2">
                     <div class="form-group" style="margin-bottom: 10px;">
                         <label>Item Code:</label>
                         <div style="display: flex; gap: 6px;">
-                            <input type="text" id="qrItemCode" placeholder="เช่น FG010175" onchange="fetchMasterForQR()">
+                            <input type="text" id="qrItemCode" placeholder="เช่น FG010009" onchange="fetchMasterForQR()">
                             <button type="button" onclick="fetchMasterForQR()" style="background:#3182ce;color:white;border:none;border-radius:6px;padding:0 12px;cursor:pointer;font-weight:600;">ดึง</button>
                         </div>
                     </div>
@@ -290,7 +280,7 @@
                     </div>
 
                     <div style="display: flex; gap: 8px;" id="outboundSearchContainer">
-                        <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;">
+                        <input type="text" name="item_code" id="itemCodeInput" placeholder="สแกนหรือพิมพ์รหัสสินค้าเพื่อค้นหา..." style="flex: 1;" onchange="fetchProductInfo()">
                         <button type="button" class="btn-search" id="btnSearchOutbound" onclick="searchOutboundLocation()">🔍 ค้นหา</button>
                     </div>
 
@@ -395,14 +385,17 @@
                 updateQRLabelPreview();
                 return;
             }
-            fetch(`/get_product_info?code=${encodeURIComponent(code)}`)
+            fetch(`/get_excel_product_info?code=${encodeURIComponent(code)}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        document.getElementById("qrDescription").value = data.description || data.product_name || "";
+                        document.getElementById("qrDescription").value = data.description || "";
                         document.getElementById("qrUnit").value = data.unit || "";
-                        if (data.lot_serial) document.getElementById("qrLotSerial").value = data.lot_serial;
-                        if (data.pallet_no) document.getElementById("qrPalletNo").value = data.pallet_no;
+                        document.getElementById("qrLotSerial").value = data.lot_serial || "";
+                        document.getElementById("qrPalletNo").value = data.pallet_no || "";
+                        if (data.quantity) document.getElementById("qrQty").value = data.quantity;
+                    } else {
+                        alert(data.message || "ไม่พบข้อมูลรหัสสินค้านี้ในไฟล์ Excel");
                     }
                     updateQRLabelPreview();
                 })
@@ -435,8 +428,7 @@
 
         function setInboundFormLocked(locked) {
             isLocationLockedByStock = locked;
-            const fieldIds = ["itemCodeInput", "productNameInput", "lotSerialInput", "quantityInput", "unitInput"];
-            fieldIds.forEach(id => {
+            ["itemCodeInput", "productNameInput", "lotSerialInput", "quantityInput", "unitInput"].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = locked;
             });
@@ -483,6 +475,8 @@
         }
 
         function startLocationScanner() {
+            const readerDiv = document.getElementById("reader");
+            readerDiv.style.display = "block";
             const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
             scanner.render((decodedText) => {
                 window.location.href = "/?location=" + encodeURIComponent(decodedText);
@@ -677,6 +671,8 @@
             if (statusSelect === "Inbound") {
                 inboundContainer.style.display = "block";
                 inboundScannerGroup.style.display = "block";
+                outboundSearchContainer.style.display = "flex";
+                document.getElementById("btnSearchOutbound").style.display = "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
                 if (btnSubmit) btnSubmit.style.display = "block";
@@ -685,6 +681,7 @@
             } else if (statusSelect === "Outbound") {
                 outboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "flex";
+                document.getElementById("btnSearchOutbound").style.display = "inline-block";
                 if (document.getElementById("outboundLotChoices").children.length > 0) {
                     outboundLotPicker.style.display = "block";
                     outboundSummaryBox.style.display = "block";
