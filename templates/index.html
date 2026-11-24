@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบ WMS คลังสินค้า - บริษัท ชาช่าไทย จำกัด เชียงราย</title>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7fafc; margin: 0; padding: 20px; color: #2d3748; }
         .container { max-width: 780px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -67,7 +68,8 @@
         .qr-label-section { background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 10px; padding: 20px; display: none; margin-bottom: 20px; }
         .qr-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .printable-label-card { border: 2px solid #1a202c; border-radius: 8px; background: #ffffff; padding: 14px; display: flex; gap: 14px; align-items: center; margin-top: 16px; }
-        .printable-label-qr img { width: 130px; height: 130px; display: block; }
+        .printable-label-qr { width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .printable-label-qr img, .printable-label-qr canvas { width: 130px !important; height: 130px !important; display: block; }
         .printable-label-info { font-size: 13px; line-height: 1.55; color: #1a202c; word-break: break-word; }
         .btn-print-label { width: 100%; background-color: #2b6cb0; color: white; padding: 12px; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 12px; }
         .btn-print-label:hover { background-color: #2c5282; }
@@ -75,25 +77,6 @@
         @media (max-width: 640px) {
             .qr-grid-2, .summary-grid { grid-template-columns: 1fr; }
             .printable-label-card { flex-direction: column; text-align: center; }
-        }
-
-        @media print {
-            body { background: white; padding: 0; margin: 0; }
-            body * { visibility: hidden; }
-            #printableLabelCard, #printableLabelCard * {
-                visibility: visible;
-            }
-            #printableLabelCard {
-                position: fixed;
-                left: 0;
-                top: 0;
-                width: auto;
-                max-width: 100%;
-                margin: 10mm;
-                border: 2px solid #000;
-                box-shadow: none;
-                page-break-inside: avoid;
-            }
         }
     </style>
 </head>
@@ -263,9 +246,7 @@
                 </div>
 
                 <div class="printable-label-card" id="printableLabelCard">
-                    <div class="printable-label-qr">
-                        <img id="qrLabelImg" src="" alt="QR Code">
-                    </div>
+                    <div class="printable-label-qr" id="qrCodeBox"></div>
                     <div class="printable-label-info">
                         <div><b>Item Code:</b> <span id="lblCode">-</span></div>
                         <div><b>Description:</b> <span id="lblDesc">-</span></div>
@@ -276,7 +257,7 @@
                     </div>
                 </div>
 
-                <button type="button" class="btn-print-label" onclick="window.print()">🖨️ สั่งปริ้นป้าย QR Code พร้อมข้อมูลติดสินค้า</button>
+                <button type="button" class="btn-print-label" onclick="printLabelWindow()">🖨️ สั่งปริ้นป้าย QR Code พร้อมข้อมูลติดสินค้า</button>
             </div>
 
             <div id="itemFieldsGroup">
@@ -328,6 +309,7 @@
         const initialInboundLocation = "{{ location|e }}";
         const searchResultsData = {{ search_results|tojson|safe }};
         let isLocationLockedByStock = false;
+        let qrInstance = null;
 
         function fmtNum(n) {
             return Number.isInteger(n) ? n.toLocaleString() : Number(n.toFixed(2)).toLocaleString();
@@ -411,7 +393,7 @@
                 .catch(() => updateQRLabelPreview());
         }
 
-        function updateQRLabelPreview() {
+        function getQRLabelPayload() {
             const code = document.getElementById("qrItemCode").value.trim() || "-";
             const desc = document.getElementById("qrDescription").value.trim() || "-";
             const lot = document.getElementById("qrLotSerial").value.trim() || "-";
@@ -419,20 +401,88 @@
             const qty = document.getElementById("qrQty").value.trim() || "1";
             const unit = document.getElementById("qrUnit").value.trim() || "";
             const refText = code !== "-" ? `${code}#${desc}#${qty}#${unit}#${lot}#${pallet}` : "-";
+            return { code, desc, lot, pallet, qty, unit, refText };
+        }
 
-            document.getElementById("lblCode").innerText = code;
-            document.getElementById("lblDesc").innerText = desc;
-            document.getElementById("lblLot").innerText = lot;
-            document.getElementById("lblPallet").innerText = pallet;
-            document.getElementById("lblQtyUnit").innerText = `${qty} ${unit}`.trim();
-            document.getElementById("lblRef").innerText = refText;
+        function renderQRCodeInto(targetElement, text) {
+            targetElement.innerHTML = "";
+            if (!text || text === "-" || typeof QRCode === "undefined") return;
+            new QRCode(targetElement, {
+                text: text,
+                width: 180,
+                height: 180,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
 
-            const imgEl = document.getElementById("qrLabelImg");
-            if (refText !== "-") {
-                imgEl.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(refText);
-            } else {
-                imgEl.src = "";
+        function updateQRLabelPreview() {
+            const p = getQRLabelPayload();
+            document.getElementById("lblCode").innerText = p.code;
+            document.getElementById("lblDesc").innerText = p.desc;
+            document.getElementById("lblLot").innerText = p.lot;
+            document.getElementById("lblPallet").innerText = p.pallet;
+            document.getElementById("lblQtyUnit").innerText = `${p.qty} ${p.unit}`.trim();
+            document.getElementById("lblRef").innerText = p.refText;
+
+            const boxEl = document.getElementById("qrCodeBox");
+            renderQRCodeInto(boxEl, p.refText !== "-" ? p.refText : "CHACHA-WMS");
+        }
+
+        function printLabelWindow() {
+            const p = getQRLabelPayload();
+            const win = window.open("", "_blank", "width=650,height=420");
+            if (!win) {
+                alert("เบราว์เซอร์บล็อกหน้าต่างป๊อปอัป กรุณาอนุญาต Pop-up สำหรับเว็บนี้แล้วกดสั่งปริ้นอีกครั้งค่ะ");
+                return;
             }
+
+            const payloadStr = p.refText !== "-" ? p.refText : `${p.code}#${p.desc}#${p.qty}#${p.unit}#${p.lot}#${p.pallet}`;
+
+            win.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>พิมพ์ป้าย QR Code สินค้า</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 16px; color: #000; background: #fff; }
+                        .label-sheet { border: 2px solid #000; border-radius: 6px; padding: 14px; display: flex; gap: 16px; align-items: center; max-width: 560px; }
+                        #printQrBox { width: 140px; height: 140px; flex-shrink: 0; }
+                        #printQrBox img, #printQrBox canvas { width: 140px !important; height: 140px !important; display: block; }
+                        .info { font-size: 13px; line-height: 1.55; word-break: break-word; }
+                        @page { margin: 8mm; }
+                    </style>
+                </head>
+                <body>
+                    <div class="label-sheet">
+                        <div id="printQrBox"></div>
+                        <div class="info">
+                            <div><b>Item Code:</b> ${p.code}</div>
+                            <div><b>Description:</b> ${p.desc}</div>
+                            <div><b>Lot Serial:</b> ${p.lot}</div>
+                            <div><b>Pallet No.:</b> ${p.pallet}</div>
+                            <div><b>Qty / Unit:</b> ${p.qty} ${p.unit}</div>
+                            <div><b>Reference:</b> ${p.refText}</div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            new QRCode(document.getElementById("printQrBox"), {
+                                text: ${JSON.stringify(payloadStr)},
+                                width: 180,
+                                height: 180,
+                                correctLevel: QRCode.CorrectLevel.M
+                            });
+                            setTimeout(function() {
+                                window.print();
+                            }, 250);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
         }
 
         function setInboundFormLocked(locked) {
