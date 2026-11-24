@@ -147,6 +147,37 @@
 
         input:disabled, select:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
 
+        .unit-preset-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .unit-preset-btn {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #334155;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .unit-preset-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .unit-preset-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+        }
+
         .btn-submit {
             width: 100%;
             background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
@@ -556,10 +587,14 @@
                         <input type="text" id="qrPalletNo" placeholder="เลขพาเลท..." oninput="updateQRLabelPreview()">
                     </div>
                     <div class="form-group" style="margin-bottom: 10px;">
-                        <label>Quantity & Unit (กรอกจำนวนเอง):</label>
+                        <label>Quantity & Unit (เลือก Pack หรือ Cartons หรือกรอกเอง):</label>
                         <div style="display: flex; gap: 6px;">
                             <input type="number" id="qrQty" placeholder="กรอกจำนวน..." min="1" oninput="updateQRLabelPreview()">
-                            <input type="text" id="qrUnit" placeholder="Kg" oninput="updateQRLabelPreview()">
+                            <input type="text" id="qrUnit" placeholder="Pack / Cartons" oninput="updateQRLabelPreview()">
+                        </div>
+                        <div class="unit-preset-row">
+                            <button type="button" class="unit-preset-btn" data-qr-unit="Pack" onclick="setQRUnitPreset('Pack')">Pack</button>
+                            <button type="button" class="unit-preset-btn" data-qr-unit="Cartons" onclick="setQRUnitPreset('Cartons')">Cartons</button>
                         </div>
                     </div>
                 </div>
@@ -619,7 +654,11 @@
 
                 <div class="form-group">
                     <label>หน่วย (Unit):</label>
-                    <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า...">
+                    <input type="text" name="unit" id="unitInput" placeholder="หน่วยสินค้า (Pack / Cartons)..." oninput="syncUnitPresetButtons()">
+                    <div class="unit-preset-row">
+                        <button type="button" class="unit-preset-btn" data-unit="Pack" onclick="setUnitPreset('Pack')">Pack</button>
+                        <button type="button" class="unit-preset-btn" data-unit="Cartons" onclick="setUnitPreset('Cartons')">Cartons</button>
+                    </div>
                 </div>
             </div>
 
@@ -633,6 +672,42 @@
         const logoUrl = window.location.origin + "/static/logo.png";
         let isLocationLockedByStock = false;
         let isSearchingOutbound = false;
+
+        function setUnitPreset(unitName) {
+            const unitInput = document.getElementById("unitInput");
+            if (unitInput && !unitInput.disabled) {
+                unitInput.value = unitName;
+                syncUnitPresetButtons();
+            }
+        }
+
+        function syncUnitPresetButtons() {
+            const unitInput = document.getElementById("unitInput");
+            const currentVal = unitInput ? unitInput.value.trim().toLowerCase() : "";
+            document.querySelectorAll(".unit-preset-btn[data-unit]").forEach(btn => {
+                const target = (btn.getAttribute("data-unit") || "").toLowerCase();
+                btn.classList.toggle("active", currentVal === target);
+                btn.disabled = unitInput ? unitInput.disabled : false;
+            });
+        }
+
+        function setQRUnitPreset(unitName) {
+            const qrUnitInput = document.getElementById("qrUnit");
+            if (qrUnitInput) {
+                qrUnitInput.value = unitName;
+                syncQRUnitPresetButtons();
+                updateQRLabelPreview();
+            }
+        }
+
+        function syncQRUnitPresetButtons() {
+            const qrUnitInput = document.getElementById("qrUnit");
+            const currentVal = qrUnitInput ? qrUnitInput.value.trim().toLowerCase() : "";
+            document.querySelectorAll(".unit-preset-btn[data-qr-unit]").forEach(btn => {
+                const target = (btn.getAttribute("data-qr-unit") || "").toLowerCase();
+                btn.classList.toggle("active", currentVal === target);
+            });
+        }
 
         function selectModeTab(mode) {
             const selectEl = document.getElementById("statusSelect");
@@ -719,6 +794,7 @@
                     if (data.success) {
                         document.getElementById("qrDescription").value = data.description || data.product_name || "";
                         document.getElementById("qrUnit").value = data.unit || "";
+                        syncQRUnitPresetButtons();
                         const qtyInput = document.getElementById("qrQty");
                         qtyInput.value = "";
                         qtyInput.placeholder = "กรอกจำนวน...";
@@ -754,6 +830,7 @@
         }
 
         function updateQRLabelPreview() {
+            syncQRUnitPresetButtons();
             const p = getQRLabelPayload();
             document.getElementById("lblCode").innerText = p.code;
             document.getElementById("lblDesc").innerText = p.desc;
@@ -835,6 +912,7 @@
             const btnSubmit = document.getElementById("btnSubmitForm");
             if (btnScanItem) btnScanItem.disabled = locked;
             if (btnSubmit) btnSubmit.disabled = locked;
+            syncUnitPresetButtons();
         }
 
         function resetInboundLocation() {
@@ -930,7 +1008,10 @@
                 if (parts.length >= 1) document.getElementById("itemCodeInput").value = parts[0].trim();
                 if (parts.length >= 2) document.getElementById("productNameInput").value = parts[1].trim();
                 if (parts.length >= 3) document.getElementById("quantityInput").value = parts[2].trim();
-                if (parts.length >= 4) document.getElementById("unitInput").value = parts[3].trim();
+                if (parts.length >= 4) {
+                    document.getElementById("unitInput").value = parts[3].trim();
+                    syncUnitPresetButtons();
+                }
                 if (parts.length >= 5) document.getElementById("lotSerialInput").value = parts[4].trim();
             } else {
                 document.getElementById("itemCodeInput").value = rawText;
@@ -949,6 +1030,7 @@
                     if (data.success) {
                         document.getElementById("productNameInput").value = data.product_name;
                         document.getElementById("unitInput").value = data.unit;
+                        syncUnitPresetButtons();
                         if (data.lot_serial) document.getElementById("lotSerialInput").value = data.lot_serial;
                     }
                 })
@@ -972,11 +1054,12 @@
             const prodName = opt.product_name || "";
             const lotVal = (opt.lot_serial && opt.lot_serial !== "-") ? opt.lot_serial : "";
             const locVal = opt.location || "ไม่ระบุพิกัด";
-            const unitVal = opt.unit || "Piece";
+            const unitVal = opt.unit || "Pack";
 
             document.getElementById("productNameInput").value = prodName;
             document.getElementById("lotSerialInput").value = lotVal;
             document.getElementById("unitInput").value = unitVal;
+            syncUnitPresetButtons();
             document.getElementById("foundLocationText").innerText = locVal;
             document.getElementById("outboundLocationBox").style.display = "block";
             document.getElementById("formLocationInput").value = locVal;
@@ -1010,9 +1093,10 @@
 
                     if (data.success) {
                         const defaultName = data.product_name || "";
-                        const defaultUnit = data.unit || "Piece";
+                        const defaultUnit = data.unit || "Pack";
                         document.getElementById("productNameInput").value = defaultName;
                         document.getElementById("unitInput").value = defaultUnit;
+                        syncUnitPresetButtons();
 
                         const rawOptions = data.options || [];
                         const uniqueMap = new Map();
@@ -1122,6 +1206,7 @@
                 if (btnSubmit) btnSubmit.style.display = "none";
                 updateQRLabelPreview();
             }
+            syncUnitPresetButtons();
         }
 
         function handleFormSubmit() {
@@ -1167,6 +1252,7 @@
                 document.getElementById("statusSelect").value = "Cycle Count";
             }
             handleStatusChange();
+            syncUnitPresetButtons();
         };
     </script>
 </body>
