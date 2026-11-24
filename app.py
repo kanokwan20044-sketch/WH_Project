@@ -228,52 +228,59 @@ def search_outbound():
         inbound_records = []
 
         for row in data_rows[1:]:
-            if len(row) >= 8 and row[3].strip().lower() == code.lower():
-                row_loc = row[1].strip()
-                status = row[2].strip().lower()
-                prod_name = row[4].strip() or master_name or 'ไม่ระบุชื่อสินค้า'
-                lot_serial = row[5].strip()
+            if len(row) >= 8 and str(row[3]).strip().lower() == code.lower():
+                row_loc = str(row[1]).strip() or 'ไม่ระบุพิกัด'
+                status = str(row[2]).strip().lower()
+                prod_name = str(row[4]).strip() or master_name or 'ไม่ระบุชื่อสินค้า'
+                lot_serial = str(row[5]).strip()
                 qty = parse_qty(row[6])
-                unit = row[7].strip() or master_unit or 'Piece'
+                unit = str(row[7]).strip() or master_unit or 'Piece'
 
-                key = (lot_serial, row_loc, prod_name, unit)
+                key = (lot_serial.lower(), row_loc.lower(), unit.lower())
                 if key not in lot_stock:
-                    lot_stock[key] = 0.0
+                    lot_stock[key] = {
+                        'product_name': prod_name,
+                        'lot_serial': lot_serial,
+                        'location': row_loc,
+                        'unit': unit,
+                        'balance': 0.0
+                    }
 
                 if status == 'inbound':
-                    lot_stock[key] += qty
+                    lot_stock[key]['balance'] += qty
                     inbound_records.append({
                         'product_name': prod_name,
                         'lot_serial': lot_serial,
-                        'location': row_loc if row_loc else 'ไม่ระบุพิกัด',
+                        'location': row_loc,
                         'unit': unit
                     })
                 elif status == 'outbound':
-                    lot_stock[key] -= qty
+                    lot_stock[key]['balance'] -= qty
 
         options = []
-        for (lot_serial, row_loc, prod_name, unit), balance in lot_stock.items():
-            if balance > 0:
+        seen_keys = set()
+        for key, info in lot_stock.items():
+            if info['balance'] > 0 and key not in seen_keys:
+                seen_keys.add(key)
                 options.append({
-                    'product_name': prod_name,
-                    'lot_serial': lot_serial if lot_serial else '-',
-                    'location': row_loc if row_loc else 'ไม่ระบุพิกัด',
-                    'balance': format_qty(balance),
-                    'unit': unit
+                    'product_name': master_name or info['product_name'],
+                    'lot_serial': info['lot_serial'] if info['lot_serial'] else '-',
+                    'location': info['location'],
+                    'balance': format_qty(info['balance']),
+                    'unit': master_unit or info['unit']
                 })
 
         if not options and inbound_records:
-            seen = set()
             for rec in reversed(inbound_records):
-                uniq = (rec['lot_serial'], rec['location'], rec['product_name'], rec['unit'])
-                if uniq not in seen:
-                    seen.add(uniq)
+                uniq = (rec['lot_serial'].lower(), rec['location'].lower(), rec['unit'].lower())
+                if uniq not in seen_keys:
+                    seen_keys.add(uniq)
                     options.append({
-                        'product_name': rec['product_name'],
+                        'product_name': master_name or rec['product_name'],
                         'lot_serial': rec['lot_serial'] if rec['lot_serial'] else '-',
                         'location': rec['location'],
                         'balance': 0,
-                        'unit': rec['unit']
+                        'unit': master_unit or rec['unit']
                     })
 
         return jsonify({
