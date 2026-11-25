@@ -43,6 +43,26 @@ def clean_txt(val):
     return ' '.join(str(val or '').replace('\u00a0', ' ').split()).strip()
 
 
+def norm_unit(val):
+    u = clean_txt(val).lower()
+    if u in ('catons', 'carton', 'cartons'):
+        return 'cartons'
+    if u in ('pack', 'packs'):
+        return 'pack'
+    return u
+
+
+def display_unit(val, fallback='Pack'):
+    raw = clean_txt(val)
+    if not raw:
+        return fallback
+    if raw.lower() in ('catons', 'carton', 'cartons'):
+        return 'Cartons'
+    if raw.lower() in ('pack', 'packs'):
+        return 'Pack'
+    return raw
+
+
 @app.route('/')
 def index():
     location = request.args.get('location', '').strip()
@@ -140,9 +160,9 @@ def check_location_stock():
                 product_name = clean_txt(row[4])
                 lot_serial = clean_txt(row[5])
                 qty = parse_qty(row[6])
-                unit = clean_txt(row[7])
+                unit = display_unit(row[7], 'Pack')
 
-                key = (item_code.lower(), product_name.lower(), lot_serial.lower(), unit.lower())
+                key = (item_code.lower(), product_name.lower(), lot_serial.lower(), norm_unit(unit))
                 if key not in stock_map:
                     stock_map[key] = {
                         'item_code': item_code,
@@ -195,7 +215,7 @@ def get_product_info():
             row_code = clean_txt(row[0]).lower()
             if row_code == code:
                 fg_name = clean_txt(row[1])
-                unit = clean_txt(row[2])
+                unit = display_unit(row[2], 'Pack')
                 kg_per_unit = clean_txt(row[3]) if len(row) > 3 and clean_txt(row[3]) else '1'
                 return jsonify({
                     'success': True,
@@ -216,20 +236,20 @@ def get_product_info():
 def search_outbound():
     code = request.args.get('code', '').strip()
     if not code:
-        return jsonify({'success': False, 'reason': 'empty_code', 'message': 'กรุณาระบุรหัสสินค้า'})
+        return jsonify({'success': False, 'has_stock': False, 'options': [], 'message': 'กรุณาระบุรหัสสินค้า'})
 
     try:
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
         master_found = False
         master_name = ""
-        master_unit = ""
+        master_unit = "Pack"
 
         for row in master_rows[1:]:
             if len(row) >= 3 and clean_txt(row[0]).lower() == code.lower():
                 master_found = True
                 master_name = clean_txt(row[1])
-                master_unit = clean_txt(row[2])
+                master_unit = display_unit(row[2], 'Pack')
                 break
 
         data_sheet = get_google_sheet('DATA_WH')
@@ -247,15 +267,15 @@ def search_outbound():
                 prod_name = clean_txt(row[4]) or master_name or 'ไม่ระบุชื่อสินค้า'
                 lot_serial = clean_txt(row[5]) or '-'
                 qty = parse_qty(row[6])
-                row_unit = clean_txt(row[7]) or master_unit or 'Pack'
+                row_unit_disp = display_unit(row[7], master_unit)
 
-                key = (lot_serial.lower(), row_loc.lower(), row_unit.lower())
+                key = (lot_serial.lower(), row_loc.lower(), norm_unit(row_unit_disp))
                 if key not in stock_by_loc:
                     stock_by_loc[key] = {
                         'product_name': prod_name,
                         'lot_serial': lot_serial,
                         'location': row_loc,
-                        'unit': row_unit,
+                        'unit': row_unit_disp,
                         'balance': 0.0
                     }
                     ordered_keys.append(key)
@@ -294,9 +314,9 @@ def search_outbound():
                 'reason': 'out_of_stock',
                 'item_code': code,
                 'product_name': master_name or 'ไม่ระบุชื่อสินค้า',
-                'unit': master_unit or 'Pack',
+                'unit': master_unit,
                 'options': [],
-                'message': f'⚠️ รหัสสินค้า {code} ถูกเบิกจ่ายออกไปหมดแล้ว ไม่มีรายการคงเหลือให้เบิก'
+                'message': f'⚠️ รหัสสินค้า {code} ถูกเบิกจ่ายออกไปหมดแล้ว ไม่มีสต็อกคงเหลือให้เบิก'
             })
 
         if master_found:
@@ -306,7 +326,7 @@ def search_outbound():
                 'reason': 'no_inbound',
                 'item_code': code,
                 'product_name': master_name,
-                'unit': master_unit or 'Pack',
+                'unit': master_unit,
                 'options': [],
                 'message': f'⚠️ ไม่พบยอดรับเข้าคงเหลือของรหัส {code} ({master_name}) ในคลังสินค้า'
             })
@@ -334,14 +354,14 @@ def submit():
         product_name = clean_txt(request.form.get('product_name', ''))
         lot_serial = clean_txt(request.form.get('lot_serial', ''))
         quantity = clean_txt(request.form.get('quantity', '1')) or '1'
-        unit = clean_txt(request.form.get('unit', ''))
+        unit = display_unit(request.form.get('unit', ''), 'Pack')
 
         if status.lower() == 'outbound':
             data_sheet = get_google_sheet('DATA_WH')
             data_rows = data_sheet.get_all_values()
             target_loc = clean_txt(location).lower()
             target_lot = (clean_txt(lot_serial) or '-').lower()
-            target_unit = clean_txt(unit).lower()
+            target_unit = norm_unit(unit)
             req_qty = parse_qty(quantity)
 
             avail_qty = 0.0
@@ -351,7 +371,7 @@ def submit():
                     r_st = clean_txt(row[2]).lower()
                     r_lot = (clean_txt(row[5]) or '-').lower()
                     r_qty = parse_qty(row[6])
-                    r_unit = clean_txt(row[7]).lower()
+                    r_unit = norm_unit(row[7])
 
                     same_loc_and_lot = (r_loc == target_loc and r_lot == target_lot)
                     same_unit = (not target_unit or not r_unit or r_unit == target_unit)
@@ -362,7 +382,7 @@ def submit():
                             avail_qty -= r_qty
 
             if avail_qty <= 0 or req_qty > avail_qty:
-                return f"ไม่สามารถเบิกจ่าย {item_code} ได้ เนื่องจากสินค้าถูกเบิกหมดแล้วหรือยอดคงเหลือไม่เพียงพอ (คงเหลือ {format_qty(max(avail_qty, 0.0))})", 400
+                return f"ไม่สามารถเบิกจ่าย {item_code} ได้ เนื่องจากสินค้าถูกเบิกหมดแล้วหรือยอดคงเหลือไม่เพียงพอ (คงเหลือ {format_qty(max(avail_qty, 0.0))} {unit})", 400
 
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
