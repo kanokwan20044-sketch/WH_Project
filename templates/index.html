@@ -320,6 +320,18 @@
             display: none;
         }
 
+        .outbound-alert-box {
+            background-color: #fef2f2;
+            border: 2px solid #f87171;
+            color: #991b1b;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            display: none;
+        }
+
         .alert-success {
             background-color: #dcfce7;
             color: #14532d;
@@ -546,6 +558,8 @@
             📍 พิกัดจัดเก็บสินค้า (Location): <b id="foundLocationText" style="color: #15803d; font-size: 16px;">-</b>
         </div>
 
+        <div class="outbound-alert-box" id="outboundAlertBox"></div>
+
         <form action="/submit" method="POST" id="wmsForm" onsubmit="return handleFormSubmit()">
             <input type="hidden" name="location" id="formLocationInput" value="{{ location }}">
 
@@ -672,6 +686,7 @@
         const logoUrl = window.location.origin + "/static/logo.png";
         let isLocationLockedByStock = false;
         let isSearchingOutbound = false;
+        let hasOutboundStockAvailable = false;
 
         function setUnitPreset(unitName) {
             const unitInput = document.getElementById("unitInput");
@@ -1068,6 +1083,35 @@
             document.getElementById("quantityInput").focus();
         }
 
+        function clearOutboundState() {
+            hasOutboundStockAvailable = false;
+            const pickerBox = document.getElementById("outboundLotPicker");
+            const choicesDiv = document.getElementById("outboundLotChoices");
+            const summaryBox = document.getElementById("outboundSummaryBox");
+            const locBox = document.getElementById("outboundLocationBox");
+            const alertBox = document.getElementById("outboundAlertBox");
+
+            if (choicesDiv) choicesDiv.innerHTML = "";
+            if (pickerBox) pickerBox.style.display = "none";
+            if (summaryBox) summaryBox.style.display = "none";
+            if (locBox) locBox.style.display = "none";
+            if (alertBox) {
+                alertBox.style.display = "none";
+                alertBox.innerText = "";
+            }
+            document.getElementById("foundLocationText").innerText = "-";
+            document.getElementById("formLocationInput").value = "";
+        }
+
+        function showOutboundAlert(msg) {
+            const alertBox = document.getElementById("outboundAlertBox");
+            if (alertBox) {
+                alertBox.innerText = msg;
+                alertBox.style.display = "block";
+            }
+            alert(msg);
+        }
+
         function searchOutboundLocation() {
             const codeInput = document.getElementById("itemCodeInput");
             const code = codeInput ? codeInput.value.trim() : "";
@@ -1078,61 +1122,60 @@
 
             if (isSearchingOutbound) return;
             isSearchingOutbound = true;
-
-            const pickerBox = document.getElementById("outboundLotPicker");
-            const choicesDiv = document.getElementById("outboundLotChoices");
-            choicesDiv.innerHTML = "";
-            pickerBox.style.display = "none";
-            document.getElementById("outboundSummaryBox").style.display = "none";
+            clearOutboundState();
 
             fetch(`/search_outbound?code=${encodeURIComponent(code)}&t=${new Date().getTime()}`)
                 .then(response => response.json())
                 .then(data => {
                     isSearchingOutbound = false;
-                    choicesDiv.innerHTML = "";
+                    clearOutboundState();
 
-                    if (data.success) {
-                        const defaultName = data.product_name || "";
-                        document.getElementById("productNameInput").value = defaultName;
+                    if (data.success && data.has_stock && Array.isArray(data.options) && data.options.length > 0) {
+                        hasOutboundStockAvailable = true;
+                        document.getElementById("productNameInput").value = data.product_name || "";
 
-                        const rawOptions = data.options || [];
                         const uniqueMap = new Map();
-                        rawOptions.forEach(opt => {
-                            const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}__${String(opt.unit || "").trim().toLowerCase()}`;
-                            if (!uniqueMap.has(k)) {
-                                uniqueMap.set(k, opt);
+                        data.options.forEach(opt => {
+                            if ((parseFloat(opt.balance) || 0) > 0) {
+                                const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}__${String(opt.unit || "").trim().toLowerCase()}`;
+                                if (!uniqueMap.has(k)) {
+                                    uniqueMap.set(k, opt);
+                                }
                             }
                         });
                         const options = Array.from(uniqueMap.values());
 
                         if (options.length > 0) {
+                            const pickerBox = document.getElementById("outboundLotPicker");
+                            const choicesDiv = document.getElementById("outboundLotChoices");
                             pickerBox.style.display = "block";
                             options.forEach((opt, idx) => {
                                 const btn = document.createElement("button");
                                 btn.type = "button";
                                 btn.className = "lot-choice-btn";
-                                const balText = opt.balance > 0 ? `คงเหลือ: <b>${opt.balance} ${opt.unit}</b>` : `<span style="color:#94a3b8;">ประวัติรับเข้า</span>`;
-                                btn.innerHTML = `Lot: <b style="color:#b45309;">${opt.lot_serial}</b> | Location: <b style="color:#15803d;">📍 ${opt.location}</b> | ${balText}`;
+                                btn.innerHTML = `Lot: <b style="color:#b45309;">${opt.lot_serial}</b> | Location: <b style="color:#15803d;">📍 ${opt.location}</b> | คงเหลือ: <b>${opt.balance} ${opt.unit}</b>`;
                                 btn.onclick = function() { selectOutboundOption(opt, btn); };
                                 choicesDiv.appendChild(btn);
                                 if (idx === 0) selectOutboundOption(opt, btn);
                             });
-                        } else {
-                            const fallbackUnit = data.unit || "Pack";
-                            document.getElementById("unitInput").value = fallbackUnit;
-                            syncUnitPresetButtons();
-                            document.getElementById("foundLocationText").innerText = "ไม่พบพิกัดจัดเก็บในระบบ";
-                            document.getElementById("outboundLocationBox").style.display = "block";
-                            document.getElementById("formLocationInput").value = "ไม่พบพิกัดจัดเก็บในระบบ";
-                            updateOutboundSummary(code, defaultName, "-", "ไม่พบพิกัดจัดเก็บในระบบ", fallbackUnit);
+                            return;
                         }
-                    } else {
-                        alert("ไม่พบข้อมูลสินค้านี้ในระบบ");
                     }
+
+                    document.getElementById("productNameInput").value = "";
+                    document.getElementById("lotSerialInput").value = "";
+                    document.getElementById("unitInput").value = "";
+                    syncUnitPresetButtons();
+
+                    const alertMsg = (data && data.message)
+                        ? data.message
+                        : `❌ ไม่พบข้อมูลสินค้าหรือสินค้าหมดแล้วสำหรับรหัส ${code}`;
+                    showOutboundAlert(alertMsg);
                 })
                 .catch(err => {
                     isSearchingOutbound = false;
                     console.error("Error:", err);
+                    showOutboundAlert("❌ เกิดข้อผิดพลาดในการเชื่อมต่อเพื่อค้นหาข้อมูลสินค้า");
                 });
         }
 
@@ -1156,6 +1199,7 @@
             const outboundLotPicker = document.getElementById("outboundLotPicker");
             const outboundSummaryBox = document.getElementById("outboundSummaryBox");
             const outboundBox = document.getElementById("outboundLocationBox");
+            const outboundAlertBox = document.getElementById("outboundAlertBox");
             const lockBox = document.getElementById("stockLockBox");
             const itemFieldsGroup = document.getElementById("itemFieldsGroup");
             const btnSubmit = document.getElementById("btnSubmitForm");
@@ -1169,6 +1213,7 @@
             outboundLotPicker.style.display = "none";
             outboundSummaryBox.style.display = "none";
             outboundBox.style.display = "none";
+            if (outboundAlertBox) outboundAlertBox.style.display = "none";
             lockBox.style.display = "none";
             setInboundFormLocked(false);
 
@@ -1186,11 +1231,11 @@
                 outboundScannerGroup.style.display = "block";
                 outboundSearchContainer.style.display = "flex";
                 document.getElementById("btnSearchOutbound").style.display = "inline-block";
-                if (document.getElementById("outboundLotChoices").children.length > 0) {
+                if (hasOutboundStockAvailable && document.getElementById("outboundLotChoices").children.length > 0) {
                     outboundLotPicker.style.display = "block";
                     outboundSummaryBox.style.display = "block";
                 }
-                outboundBox.style.display = document.getElementById("foundLocationText").innerText !== "-" ? "block" : "none";
+                outboundBox.style.display = (hasOutboundStockAvailable && document.getElementById("foundLocationText").innerText !== "-") ? "block" : "none";
                 itemFieldsGroup.style.display = "block";
                 setItemFieldsRequired(true);
                 if (btnSubmit) { btnSubmit.style.display = "block"; btnSubmit.disabled = false; }
@@ -1219,9 +1264,11 @@
                 document.getElementById("formLocationInput").value = initialInboundLocation;
             } else if (statusSelect === "Outbound") {
                 const foundLoc = document.getElementById("foundLocationText").innerText.trim();
-                if (foundLoc && foundLoc !== "-") {
-                    document.getElementById("formLocationInput").value = foundLoc;
+                if (!hasOutboundStockAvailable || !foundLoc || foundLoc === "-") {
+                    alert("ไม่สามารถบันทึกเบิกจ่ายได้ เนื่องจากไม่พบรายการสินค้าคงเหลือหรือสินค้าถูกเบิกหมดแล้ว");
+                    return false;
                 }
+                document.getElementById("formLocationInput").value = foundLoc;
             }
             return true;
         }

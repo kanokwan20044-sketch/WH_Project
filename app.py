@@ -216,16 +216,18 @@ def get_product_info():
 def search_outbound():
     code = request.args.get('code', '').strip()
     if not code:
-        return jsonify({'success': False})
+        return jsonify({'success': False, 'reason': 'empty_code', 'message': 'กรุณาระบุรหัสสินค้า'})
 
     try:
         master_sheet = get_google_sheet('Master_code')
         master_rows = master_sheet.get_all_values()
+        master_found = False
         master_name = ""
         master_unit = ""
 
         for row in master_rows[1:]:
             if len(row) >= 3 and clean_txt(row[0]).lower() == code.lower():
+                master_found = True
                 master_name = clean_txt(row[1])
                 master_unit = clean_txt(row[2])
                 break
@@ -235,23 +237,25 @@ def search_outbound():
 
         stock_by_loc = {}
         ordered_keys = []
+        has_any_data_row = False
 
         for row in data_rows[1:]:
             if len(row) >= 8 and clean_txt(row[3]).lower() == code.lower():
+                has_any_data_row = True
                 row_loc = clean_txt(row[1]) or 'ไม่ระบุพิกัด'
                 status = clean_txt(row[2]).lower()
                 prod_name = clean_txt(row[4]) or master_name or 'ไม่ระบุชื่อสินค้า'
                 lot_serial = clean_txt(row[5]) or '-'
                 qty = parse_qty(row[6])
-                unit = clean_txt(row[7]) or master_unit or 'Piece'
+                row_unit = clean_txt(row[7]) or master_unit or 'Pack'
 
-                key = (lot_serial.lower(), row_loc.lower())
+                key = (lot_serial.lower(), row_loc.lower(), row_unit.lower())
                 if key not in stock_by_loc:
                     stock_by_loc[key] = {
                         'product_name': prod_name,
                         'lot_serial': lot_serial,
                         'location': row_loc,
-                        'unit': unit,
+                        'unit': row_unit,
                         'balance': 0.0
                     }
                     ordered_keys.append(key)
@@ -266,35 +270,59 @@ def search_outbound():
             info = stock_by_loc[key]
             if info['balance'] > 0:
                 options.append({
-                    'product_name': master_name or info['product_name'],
+                    'product_name': info['product_name'] or master_name,
                     'lot_serial': info['lot_serial'],
                     'location': info['location'],
                     'balance': format_qty(info['balance']),
-                    'unit': master_unit or info['unit']
+                    'unit': info['unit']
                 })
 
-        if not options and ordered_keys:
-            for key in reversed(ordered_keys):
-                info = stock_by_loc[key]
-                options.append({
-                    'product_name': master_name or info['product_name'],
-                    'lot_serial': info['lot_serial'],
-                    'location': info['location'],
-                    'balance': 0,
-                    'unit': master_unit or info['unit']
-                })
+        if options:
+            return jsonify({
+                'success': True,
+                'has_stock': True,
+                'item_code': code,
+                'product_name': master_name or options[0]['product_name'],
+                'unit': options[0]['unit'],
+                'options': options
+            })
+
+        if has_any_data_row:
+            return jsonify({
+                'success': True,
+                'has_stock': False,
+                'reason': 'out_of_stock',
+                'item_code': code,
+                'product_name': master_name or 'ไม่ระบุชื่อสินค้า',
+                'unit': master_unit or 'Pack',
+                'options': [],
+                'message': f'⚠️ รหัสสินค้า {code} ถูกเบิกจ่ายออกไปหมดแล้ว ไม่มีรายการคงเหลือให้เบิก'
+            })
+
+        if master_found:
+            return jsonify({
+                'success': True,
+                'has_stock': False,
+                'reason': 'no_inbound',
+                'item_code': code,
+                'product_name': master_name,
+                'unit': master_unit or 'Pack',
+                'options': [],
+                'message': f'⚠️ ไม่พบยอดรับเข้าคงเหลือของรหัส {code} ({master_name}) ในคลังสินค้า'
+            })
 
         return jsonify({
-            'success': True,
+            'success': False,
+            'has_stock': False,
+            'reason': 'not_found',
             'item_code': code,
-            'product_name': master_name if master_name else (options[0]['product_name'] if options else 'ไม่พบรหัสสินค้าใน Master_code'),
-            'unit': master_unit if master_unit else (options[0]['unit'] if options else 'Piece'),
-            'options': options
+            'options': [],
+            'message': f'❌ ไม่พบข้อมูลสินค้ารหัส {code} ในระบบ'
         })
     except Exception as e:
         print(f"Error search_outbound: {e}")
 
-    return jsonify({'success': False})
+    return jsonify({'success': False, 'has_stock': False, 'options': [], 'message': 'เกิดข้อผิดพลาดในการค้นหาข้อมูล'})
 
 
 @app.route('/submit', methods=['POST'])
@@ -307,6 +335,34 @@ def submit():
         lot_serial = clean_txt(request.form.get('lot_serial', ''))
         quantity = clean_txt(request.form.get('quantity', '1')) or '1'
         unit = clean_txt(request.form.get('unit', ''))
+
+        if status.lower() == 'outbound':
+            data_sheet = get_google_sheet('DATA_WH')
+            data_rows = data_sheet.get_all_values()
+            target_loc = clean_txt(location).lower()
+            target_lot = (clean_txt(lot_serial) or '-').lower()
+            target_unit = clean_txt(unit).lower()
+            req_qty = parse_qty(quantity)
+
+            avail_qty = 0.0
+            for row in data_rows[1:]:
+                if len(row) >= 8 and clean_txt(row[3]).lower() == item_code.lower():
+                    r_loc = (clean_txt(row[1]) or 'ไม่ระบุพิกัด').lower()
+                    r_st = clean_txt(row[2]).lower()
+                    r_lot = (clean_txt(row[5]) or '-').lower()
+                    r_qty = parse_qty(row[6])
+                    r_unit = clean_txt(row[7]).lower()
+
+                    same_loc_and_lot = (r_loc == target_loc and r_lot == target_lot)
+                    same_unit = (not target_unit or not r_unit or r_unit == target_unit)
+                    if same_loc_and_lot and same_unit:
+                        if r_st == 'inbound':
+                            avail_qty += r_qty
+                        elif r_st == 'outbound':
+                            avail_qty -= r_qty
+
+            if avail_qty <= 0 or req_qty > avail_qty:
+                return f"ไม่สามารถเบิกจ่าย {item_code} ได้ เนื่องจากสินค้าถูกเบิกหมดแล้วหรือยอดคงเหลือไม่เพียงพอ (คงเหลือ {format_qty(max(avail_qty, 0.0))})", 400
 
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
