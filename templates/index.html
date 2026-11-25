@@ -145,6 +145,25 @@
             box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
         }
 
+        input.qty-error, input.qty-error:focus {
+            border: 2px solid #dc2626;
+            background-color: #fef2f2;
+            color: #991b1b;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+        }
+
+        .qty-error-msg {
+            display: none;
+            margin-top: 7px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background-color: #fef2f2;
+            border: 1px solid #f87171;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
         input:disabled, select:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
 
         .unit-preset-row {
@@ -667,7 +686,8 @@
 
                 <div class="form-group">
                     <label>จำนวน (Quantity):</label>
-                    <input type="number" name="quantity" id="quantityInput" value="1" min="1">
+                    <input type="number" name="quantity" id="quantityInput" value="1" min="1" oninput="validateOutboundQty()" onchange="validateOutboundQty()">
+                    <div class="qty-error-msg" id="qtyErrorMsg">สินค้าไม่เพียงพอต่อการเบิก</div>
                 </div>
 
                 <div class="form-group">
@@ -691,6 +711,45 @@
         let isLocationLockedByStock = false;
         let isSearchingOutbound = false;
         let hasOutboundStockAvailable = false;
+        let selectedLotMaxBalance = null;
+        let selectedLotUnit = "";
+
+        function validateOutboundQty() {
+            const statusVal = document.getElementById("statusSelect").value;
+            const qtyInput = document.getElementById("quantityInput");
+            const errMsgEl = document.getElementById("qtyErrorMsg");
+            const submitBtn = document.getElementById("btnSubmitForm");
+
+            if (!qtyInput || !errMsgEl) return true;
+
+            if (statusVal !== "Outbound" || selectedLotMaxBalance === null) {
+                qtyInput.classList.remove("qty-error");
+                errMsgEl.style.display = "none";
+                errMsgEl.innerText = "สินค้าไม่เพียงพอต่อการเบิก";
+                if (submitBtn && statusVal === "Outbound" && !isLocationLockedByStock) {
+                    submitBtn.disabled = false;
+                }
+                return true;
+            }
+
+            const rawQty = parseFloat(String(qtyInput.value || "").replace(/,/g, ""));
+            const isOverStock = !Number.isNaN(rawQty) && rawQty > selectedLotMaxBalance;
+
+            if (isOverStock) {
+                qtyInput.classList.add("qty-error");
+                const unitLabel = selectedLotUnit ? ` ${selectedLotUnit}` : "";
+                errMsgEl.innerText = `สินค้าไม่เพียงพอต่อการเบิก (ยอดคงเหลือของ Lot นี้มีเพียง ${selectedLotMaxBalance}${unitLabel})`;
+                errMsgEl.style.display = "block";
+                if (submitBtn) submitBtn.disabled = true;
+                return false;
+            } else {
+                qtyInput.classList.remove("qty-error");
+                errMsgEl.style.display = "none";
+                errMsgEl.innerText = "สินค้าไม่เพียงพอต่อการเบิก";
+                if (submitBtn && !isLocationLockedByStock) submitBtn.disabled = false;
+                return true;
+            }
+        }
 
         function setUnitPreset(unitName) {
             const unitInput = document.getElementById("unitInput");
@@ -1036,6 +1095,7 @@
                 document.getElementById("itemCodeInput").value = rawText;
                 fetchProductInfo();
             }
+            validateOutboundQty();
         }
 
         function fetchProductInfo() {
@@ -1075,6 +1135,10 @@
             const locVal = opt.location || "ไม่ระบุพิกัด";
             const unitVal = opt.unit || "Pack";
 
+            selectedLotMaxBalance = parseFloat(opt.balance);
+            if (Number.isNaN(selectedLotMaxBalance)) selectedLotMaxBalance = null;
+            selectedLotUnit = unitVal;
+
             document.getElementById("productNameInput").value = prodName;
             document.getElementById("lotSerialInput").value = lotVal;
             document.getElementById("unitInput").value = unitVal;
@@ -1084,11 +1148,15 @@
             document.getElementById("formLocationInput").value = locVal;
 
             updateOutboundSummary(code, prodName, lotVal || "-", locVal, unitVal);
+            validateOutboundQty();
             document.getElementById("quantityInput").focus();
         }
 
         function clearOutboundState() {
             hasOutboundStockAvailable = false;
+            selectedLotMaxBalance = null;
+            selectedLotUnit = "";
+
             const pickerBox = document.getElementById("outboundLotPicker");
             const choicesDiv = document.getElementById("outboundLotChoices");
             const summaryBox = document.getElementById("outboundSummaryBox");
@@ -1105,6 +1173,7 @@
             }
             document.getElementById("foundLocationText").innerText = "-";
             document.getElementById("formLocationInput").value = "";
+            validateOutboundQty();
         }
 
         function showOutboundAlert(msg) {
@@ -1256,6 +1325,7 @@
                 updateQRLabelPreview();
             }
             syncUnitPresetButtons();
+            validateOutboundQty();
         }
 
         function handleFormSubmit() {
@@ -1270,6 +1340,11 @@
                 const foundLoc = document.getElementById("foundLocationText").innerText.trim();
                 if (!hasOutboundStockAvailable || !foundLoc || foundLoc === "-") {
                     alert("ไม่สามารถบันทึกเบิกจ่ายได้ เนื่องจากไม่พบรายการสินค้าคงเหลือหรือสินค้าถูกเบิกหมดแล้ว");
+                    return false;
+                }
+                if (!validateOutboundQty()) {
+                    alert("สินค้าไม่เพียงพอต่อการเบิก");
+                    document.getElementById("quantityInput").focus();
                     return false;
                 }
                 document.getElementById("formLocationInput").value = foundLoc;
