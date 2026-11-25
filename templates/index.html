@@ -145,23 +145,44 @@
             box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
         }
 
-        input.qty-error, input.qty-error:focus {
-            border: 2px solid #dc2626;
-            background-color: #fef2f2;
-            color: #991b1b;
-            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+        .qty-field-box {
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background-color: transparent;
+            transition: all 0.15s ease;
         }
 
-        .qty-error-msg {
+        .qty-field-box.qty-error-box {
+            border: 3px solid #dc2626;
+            background-color: #fff5f5;
+        }
+
+        .qty-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .qty-label-row label {
+            margin-bottom: 0;
+        }
+
+        .qty-inline-alert {
             display: none;
-            margin-top: 7px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background-color: #fef2f2;
-            border: 1px solid #f87171;
-            color: #b91c1c;
+            color: #dc2626;
             font-size: 13px;
             font-weight: 700;
+        }
+
+        input.qty-error, input.qty-error:focus {
+            border: 2px solid #dc2626;
+            background-color: #ffffff;
+            color: #991b1b;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
         }
 
         input:disabled, select:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -685,9 +706,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label>จำนวน (Quantity):</label>
-                    <input type="number" name="quantity" id="quantityInput" value="1" min="1" oninput="validateOutboundQty()" onchange="validateOutboundQty()">
-                    <div class="qty-error-msg" id="qtyErrorMsg">สินค้าไม่เพียงพอต่อการเบิก</div>
+                    <div class="qty-field-box" id="qtyFieldBox">
+                        <div class="qty-label-row">
+                            <label for="quantityInput">จำนวน (Quantity):</label>
+                            <span class="qty-inline-alert" id="qtyInlineAlert">สินค้าไม่เพียงพอต่อการเบิก</span>
+                        </div>
+                        <input type="number" name="quantity" id="quantityInput" value="1" min="1" oninput="validateOutboundQty()" onchange="validateOutboundQty()">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -717,13 +742,15 @@
         function validateOutboundQty() {
             const statusVal = document.getElementById("statusSelect").value;
             const qtyInput = document.getElementById("quantityInput");
-            const errMsgEl = document.getElementById("qtyErrorMsg");
+            const qtyBox = document.getElementById("qtyFieldBox");
+            const errMsgEl = document.getElementById("qtyInlineAlert");
             const submitBtn = document.getElementById("btnSubmitForm");
 
-            if (!qtyInput || !errMsgEl) return true;
+            if (!qtyInput || !errMsgEl || !qtyBox) return true;
 
             if (statusVal !== "Outbound" || selectedLotMaxBalance === null) {
                 qtyInput.classList.remove("qty-error");
+                qtyBox.classList.remove("qty-error-box");
                 errMsgEl.style.display = "none";
                 errMsgEl.innerText = "สินค้าไม่เพียงพอต่อการเบิก";
                 if (submitBtn && statusVal === "Outbound" && !isLocationLockedByStock) {
@@ -737,13 +764,15 @@
 
             if (isOverStock) {
                 qtyInput.classList.add("qty-error");
+                qtyBox.classList.add("qty-error-box");
                 const unitLabel = selectedLotUnit ? ` ${selectedLotUnit}` : "";
-                errMsgEl.innerText = `สินค้าไม่เพียงพอต่อการเบิก (ยอดคงเหลือของ Lot นี้มีเพียง ${selectedLotMaxBalance}${unitLabel})`;
-                errMsgEl.style.display = "block";
+                errMsgEl.innerText = `สินค้าไม่เพียงพอต่อการเบิก (คงเหลือ ${selectedLotMaxBalance}${unitLabel})`;
+                errMsgEl.style.display = "inline-block";
                 if (submitBtn) submitBtn.disabled = true;
                 return false;
             } else {
                 qtyInput.classList.remove("qty-error");
+                qtyBox.classList.remove("qty-error-box");
                 errMsgEl.style.display = "none";
                 errMsgEl.innerText = "สินค้าไม่เพียงพอต่อการเบิก";
                 if (submitBtn && !isLocationLockedByStock) submitBtn.disabled = false;
