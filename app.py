@@ -76,6 +76,9 @@ def index():
         sheet = get_google_sheet('DATA_WH')
         all_rows = sheet.get_all_values()
 
+        running_balance = {}
+        enriched_rows = []
+
         for row in all_rows[1:]:
             if len(row) >= 8:
                 row_time = row[0]
@@ -86,44 +89,70 @@ def index():
                 lot_serial = row[5]
                 qty = row[6]
                 unit = row[7]
+                sheet_balance = row[8] if len(row) >= 9 else ''
 
-                row_date = row_time.split(' ')[0] if ' ' in row_time else ''
+                st_low = clean_txt(status).lower()
+                code_low = clean_txt(item_code).lower()
+                lot_low = (clean_txt(lot_serial) or '-').lower()
+                u_norm = norm_unit(unit)
+                qty_num = parse_qty(qty)
 
-                match_query = True
-                match_date = True
+                key = (code_low, lot_low, u_norm)
+                if st_low == 'inbound':
+                    running_balance[key] = running_balance.get(key, 0.0) + qty_num
+                elif st_low == 'outbound':
+                    running_balance[key] = running_balance.get(key, 0.0) - qty_num
 
-                if search_query:
-                    q_lower = search_query.lower()
-                    if (
-                        q_lower not in item_code.lower()
-                        and q_lower not in product_name.lower()
-                        and q_lower not in lot_serial.lower()
-                        and q_lower not in row_location.lower()
-                        and q_lower not in status.lower()
-                    ):
-                        match_query = False
+                bal_display = clean_txt(sheet_balance) if clean_txt(sheet_balance) != '' else str(format_qty(running_balance.get(key, 0.0)))
 
-                if start_date and end_date and row_date:
-                    if not (start_date <= row_date <= end_date):
-                        match_date = False
-                elif start_date and row_date:
-                    if row_date < start_date:
-                        match_date = False
-                elif end_date and row_date:
-                    if row_date > end_date:
-                        match_date = False
+                enriched_rows.append({
+                    'timestamp': row_time,
+                    'location': row_location,
+                    'status': status,
+                    'item_code': item_code,
+                    'product_name': product_name,
+                    'lot_serial': lot_serial,
+                    'quantity': qty,
+                    'unit': unit,
+                    'balance': bal_display
+                })
 
-                if (search_query or start_date or end_date) and match_query and match_date:
-                    search_results.append({
-                        'timestamp': row_time,
-                        'location': row_location,
-                        'status': status,
-                        'item_code': item_code,
-                        'product_name': product_name,
-                        'lot_serial': lot_serial,
-                        'quantity': qty,
-                        'unit': unit
-                    })
+        for item in enriched_rows:
+            row_time = item['timestamp']
+            row_location = item['location']
+            status = item['status']
+            item_code = item['item_code']
+            product_name = item['product_name']
+            lot_serial = item['lot_serial']
+
+            row_date = row_time.split(' ')[0] if ' ' in row_time else ''
+
+            match_query = True
+            match_date = True
+
+            if search_query:
+                q_lower = search_query.lower()
+                if (
+                    q_lower not in item_code.lower()
+                    and q_lower not in product_name.lower()
+                    and q_lower not in lot_serial.lower()
+                    and q_lower not in row_location.lower()
+                    and q_lower not in status.lower()
+                ):
+                    match_query = False
+
+            if start_date and end_date and row_date:
+                if not (start_date <= row_date <= end_date):
+                    match_date = False
+            elif start_date and row_date:
+                if row_date < start_date:
+                    match_date = False
+            elif end_date and row_date:
+                if row_date > end_date:
+                    match_date = False
+
+            if (search_query or start_date or end_date) and match_query and match_date:
+                search_results.append(item)
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการค้นหา: {e}")
 
@@ -389,7 +418,32 @@ def submit():
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
 
         sheet = get_google_sheet('DATA_WH')
-        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit])
+        all_rows = sheet.get_all_values()
+
+        running_balance = {}
+        for row in all_rows[1:]:
+            if len(row) >= 8:
+                r_st = clean_txt(row[2]).lower()
+                r_code = clean_txt(row[3]).lower()
+                r_lot = (clean_txt(row[5]) or '-').lower()
+                r_qty = parse_qty(row[6])
+                r_unit = norm_unit(row[7])
+                key = (r_code, r_lot, r_unit)
+                if r_st == 'inbound':
+                    running_balance[key] = running_balance.get(key, 0.0) + r_qty
+                elif r_st == 'outbound':
+                    running_balance[key] = running_balance.get(key, 0.0) - r_qty
+
+        new_key = (item_code.lower(), (lot_serial or '-').lower(), norm_unit(unit))
+        new_qty = parse_qty(quantity)
+        if status.lower() == 'inbound':
+            running_balance[new_key] = running_balance.get(new_key, 0.0) + new_qty
+        elif status.lower() == 'outbound':
+            running_balance[new_key] = running_balance.get(new_key, 0.0) - new_qty
+
+        new_balance_val = format_qty(running_balance.get(new_key, 0.0))
+
+        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit, new_balance_val])
 
         return redirect(url_for('index', success='1'))
     except Exception as e:
