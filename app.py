@@ -90,6 +90,7 @@ def index():
                 qty = row[6]
                 unit = row[7]
                 sheet_balance = row[8] if len(row) >= 9 else ''
+                sheet_bal_unit = row[9] if len(row) >= 10 and clean_txt(row[9]) else unit
 
                 st_low = clean_txt(status).lower()
                 code_low = clean_txt(item_code).lower()
@@ -114,7 +115,8 @@ def index():
                     'lot_serial': lot_serial,
                     'quantity': qty,
                     'unit': unit,
-                    'balance': bal_display
+                    'balance': bal_display,
+                    'balance_unit': sheet_bal_unit
                 })
 
         for item in enriched_rows:
@@ -443,7 +445,7 @@ def submit():
 
         new_balance_val = format_qty(running_balance.get(new_key, 0.0))
 
-        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit, new_balance_val])
+        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit, new_balance_val, unit])
 
         return redirect(url_for('index', success='1'))
     except Exception as e:

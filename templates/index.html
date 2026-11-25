@@ -490,6 +490,7 @@
                                         <th style="text-align: right;">จำนวน</th>
                                         <th>หน่วย</th>
                                         <th style="text-align: right;">Balance</th>
+                                        <th>หน่วย (Balance)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -512,6 +513,7 @@
                                             <td style="text-align: right; font-weight: bold; color: #1d4ed8;">{{ item.quantity }}</td>
                                             <td style="color: #475569;">{{ item.unit }}</td>
                                             <td style="text-align: right; font-weight: bold; color: #15803d;">{{ item.balance }}</td>
+                                            <td style="color: #15803d; font-weight: 600;">{{ item.balance_unit }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
