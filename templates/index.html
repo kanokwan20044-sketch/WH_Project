@@ -1130,36 +1130,36 @@
                     isSearchingOutbound = false;
                     clearOutboundState();
 
-                    if (data.success && data.has_stock && Array.isArray(data.options) && data.options.length > 0) {
+                    const validOptions = (data && data.success && data.has_stock && Array.isArray(data.options))
+                        ? data.options.filter(opt => (parseFloat(opt.balance) || 0) > 0)
+                        : [];
+
+                    if (validOptions.length > 0) {
                         hasOutboundStockAvailable = true;
                         document.getElementById("productNameInput").value = data.product_name || "";
 
                         const uniqueMap = new Map();
-                        data.options.forEach(opt => {
-                            if ((parseFloat(opt.balance) || 0) > 0) {
-                                const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}__${String(opt.unit || "").trim().toLowerCase()}`;
-                                if (!uniqueMap.has(k)) {
-                                    uniqueMap.set(k, opt);
-                                }
+                        validOptions.forEach(opt => {
+                            const k = `${String(opt.lot_serial || "").trim().toLowerCase()}__${String(opt.location || "").trim().toLowerCase()}__${String(opt.unit || "").trim().toLowerCase()}`;
+                            if (!uniqueMap.has(k)) {
+                                uniqueMap.set(k, opt);
                             }
                         });
                         const options = Array.from(uniqueMap.values());
 
-                        if (options.length > 0) {
-                            const pickerBox = document.getElementById("outboundLotPicker");
-                            const choicesDiv = document.getElementById("outboundLotChoices");
-                            pickerBox.style.display = "block";
-                            options.forEach((opt, idx) => {
-                                const btn = document.createElement("button");
-                                btn.type = "button";
-                                btn.className = "lot-choice-btn";
-                                btn.innerHTML = `Lot: <b style="color:#b45309;">${opt.lot_serial}</b> | Location: <b style="color:#15803d;">📍 ${opt.location}</b> | คงเหลือ: <b>${opt.balance} ${opt.unit}</b>`;
-                                btn.onclick = function() { selectOutboundOption(opt, btn); };
-                                choicesDiv.appendChild(btn);
-                                if (idx === 0) selectOutboundOption(opt, btn);
-                            });
-                            return;
-                        }
+                        const pickerBox = document.getElementById("outboundLotPicker");
+                        const choicesDiv = document.getElementById("outboundLotChoices");
+                        pickerBox.style.display = "block";
+                        options.forEach((opt, idx) => {
+                            const btn = document.createElement("button");
+                            btn.type = "button";
+                            btn.className = "lot-choice-btn";
+                            btn.innerHTML = `Lot: <b style="color:#b45309;">${opt.lot_serial}</b> | Location: <b style="color:#15803d;">📍 ${opt.location}</b> | คงเหลือ: <b>${opt.balance} ${opt.unit}</b>`;
+                            btn.onclick = function() { selectOutboundOption(opt, btn); };
+                            choicesDiv.appendChild(btn);
+                            if (idx === 0) selectOutboundOption(opt, btn);
+                        });
+                        return;
                     }
 
                     document.getElementById("productNameInput").value = "";
@@ -1169,7 +1169,7 @@
 
                     const alertMsg = (data && data.message)
                         ? data.message
-                        : `❌ ไม่พบข้อมูลสินค้าหรือสินค้าหมดแล้วสำหรับรหัส ${code}`;
+                        : `⚠️ รหัสสินค้า ${code} ถูกเบิกจ่ายออกไปหมดแล้ว หรือไม่พบข้อมูลในระบบ`;
                     showOutboundAlert(alertMsg);
                 })
                 .catch(err => {
