@@ -387,17 +387,19 @@ def submit():
         quantity = clean_txt(request.form.get('quantity', '1')) or '1'
         unit = display_unit(request.form.get('unit', ''), 'Pack')
 
-        if status.lower() == 'outbound':
-            data_sheet = get_google_sheet('DATA_WH')
-            data_rows = data_sheet.get_all_values()
-            target_loc = clean_txt(location).lower()
-            target_lot = (clean_txt(lot_serial) or '-').lower()
-            target_unit = norm_unit(unit)
-            req_qty = parse_qty(quantity)
+        sheet = get_google_sheet('DATA_WH')
+        all_rows = sheet.get_all_values()
 
+        target_code = item_code.lower()
+        target_lot = (lot_serial or '-').lower()
+        target_unit = norm_unit(unit)
+        target_loc = clean_txt(location).lower()
+        req_qty = parse_qty(quantity)
+
+        if status.lower() == 'outbound':
             avail_qty = 0.0
-            for row in data_rows[1:]:
-                if len(row) >= 8 and clean_txt(row[3]).lower() == item_code.lower():
+            for row in all_rows[1:]:
+                if len(row) >= 8 and clean_txt(row[3]).lower() == target_code:
                     r_loc = (clean_txt(row[1]) or 'ไม่ระบุพิกัด').lower()
                     r_st = clean_txt(row[2]).lower()
                     r_lot = (clean_txt(row[5]) or '-').lower()
@@ -413,39 +415,35 @@ def submit():
                             avail_qty -= r_qty
 
             if avail_qty <= 0 or req_qty > avail_qty:
-                return f"ไม่สามารถเบิกจ่าย {item_code} ได้ เนื่องจากสินค้าถูกเบิกหมดแล้วหรือยอดคงเหลือไม่เพียงพอ (คงเหลือ {format_qty(max(avail_qty, 0.0))} {unit})", 400
+                return f"สินค้าไม่เพียงพอต่อการเบิก (คงเหลือ {format_qty(max(avail_qty, 0.0))} {unit})", 400
+
+        running_bal = 0.0
+        for row in all_rows[1:]:
+            if len(row) >= 8:
+                r_status = clean_txt(row[2]).lower()
+                r_code = clean_txt(row[3]).lower()
+                r_lot = (clean_txt(row[5]) or '-').lower()
+                r_qty = parse_qty(row[6])
+                r_unit = norm_unit(row[7])
+
+                if r_code == target_code and r_lot == target_lot and (not target_unit or not r_unit or r_unit == target_unit):
+                    if r_status == 'inbound':
+                        running_bal += r_qty
+                    elif r_status == 'outbound':
+                        running_bal -= r_qty
+
+        if status.lower() == 'inbound':
+            running_bal += req_qty
+        elif status.lower() == 'outbound':
+            running_bal -= req_qty
+
+        new_balance_str = str(format_qty(running_bal))
 
         utc_now = datetime.datetime.utcnow()
         th_now = utc_now + datetime.timedelta(hours=7)
         now = th_now.strftime('%Y-%m-%d %H:%M:%S')
 
-        sheet = get_google_sheet('DATA_WH')
-        all_rows = sheet.get_all_values()
-
-        running_balance = {}
-        for row in all_rows[1:]:
-            if len(row) >= 8:
-                r_st = clean_txt(row[2]).lower()
-                r_code = clean_txt(row[3]).lower()
-                r_lot = (clean_txt(row[5]) or '-').lower()
-                r_qty = parse_qty(row[6])
-                r_unit = norm_unit(row[7])
-                key = (r_code, r_lot, r_unit)
-                if r_st == 'inbound':
-                    running_balance[key] = running_balance.get(key, 0.0) + r_qty
-                elif r_st == 'outbound':
-                    running_balance[key] = running_balance.get(key, 0.0) - r_qty
-
-        new_key = (item_code.lower(), (lot_serial or '-').lower(), norm_unit(unit))
-        new_qty = parse_qty(quantity)
-        if status.lower() == 'inbound':
-            running_balance[new_key] = running_balance.get(new_key, 0.0) + new_qty
-        elif status.lower() == 'outbound':
-            running_balance[new_key] = running_balance.get(new_key, 0.0) - new_qty
-
-        new_balance_val = format_qty(running_balance.get(new_key, 0.0))
-
-        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit, new_balance_val, unit])
+        sheet.append_row([now, location, status, item_code, product_name, lot_serial, quantity, unit, new_balance_str, unit])
 
         return redirect(url_for('index', success='1'))
     except Exception as e:
